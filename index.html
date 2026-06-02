@@ -254,34 +254,25 @@
   }
 </style>
 
-<!-- Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, getDocs, where, updateDoc }
-    from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBt0i5mCJcQY7rw-MQx34dhe9-IBxKNkxA",
-    authDomain: "digital-transformation-16b42.firebaseapp.com",
-    projectId: "digital-transformation-16b42",
-    storageBucket: "digital-transformation-16b42.firebasestorage.app",
-    messagingSenderId: "202375001463",
-    appId: "1:202375001463:web:ce93f3772695be60435d72"
-  };
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-
-  window.db             = db;
-  window.fbCollection   = collection;
-  window.fbAddDoc       = addDoc;
-  window.fbQuery        = query;
-  window.fbOrderBy      = orderBy;
-  window.fbLimit        = limit;
-  window.fbOnSnapshot   = onSnapshot;
-  window.fbServerTimestamp = serverTimestamp;
-  window.fbGetDocs      = getDocs;
-  window.fbWhere        = where;
-  window.fbUpdateDoc    = updateDoc;
+<!--  SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script>
+  try {
+    firebase.initializeApp({
+      apiKey: "AIzaSyBt0i5mCJcQY7rw-MQx34dhe9-IBxKNkxA",
+      authDomain: "digital-transformation-16b42.firebaseapp.com",
+      projectId: "digital-transformation-16b42",
+      storageBucket: "digital-transformation-16b42.firebasestorage.app",
+      messagingSenderId: "202375001463",
+      appId: "1:202375001463:web:ce93f3772695be60435d72"
+    });
+    window.db = firebase.firestore();
+    console.log("Firebase initialised successfully.");
+  } catch(e) {
+    console.error("Firebase init failed:", e);
+    window.db = null;
+  }
 </script>
 </head>
 <body>
@@ -754,15 +745,23 @@ async function endGame(){
   /* Save to Firebase */
   if(window.db){
     try{
-      const collRef = window.fbCollection(window.db, "leaderboard");
-      const q       = window.fbQuery(collRef, window.fbWhere("name","==",state.team));
-      const snap    = await window.fbGetDocs(q);
+      const collRef = window.db.collection("leaderboard");
+      const ts      = firebase.firestore.FieldValue.serverTimestamp();
+      const snap    = await collRef.where("name", "==", state.team).get();
       if(!snap.empty){
-        await window.fbUpdateDoc(snap.docs[0].ref, { score:state.score, badge, timestamp:window.fbServerTimestamp() });
+        await snap.docs[0].ref.update({ score: state.score, badge: badge, timestamp: ts });
+        console.log("Score updated for:", state.team);
       } else {
-        await window.fbAddDoc(collRef, { name:state.team, score:state.score, badge, timestamp:window.fbServerTimestamp() });
+        await collRef.add({ name: state.team, score: state.score, badge: badge, timestamp: ts });
+        console.log("New entry saved for:", state.team);
       }
-    } catch(e){ console.error('Firebase save error:', e); }
+    } catch(e){
+      console.error("Firestore save error:", e);
+      document.getElementById('saving-score').innerHTML =
+        '<span style="color:var(--wrong-tx)">Score save failed — check Firestore Rules in Firebase Console.</span>';
+    }
+  } else {
+    console.warn("window.db is null — Firebase did not initialise.");
   }
 
   document.getElementById('saving-score').style.display = 'none';
@@ -781,9 +780,12 @@ function renderLB(){
   if(lbUnsubscribe) lbUnsubscribe();
 
   try{
-    const q = window.fbQuery(window.fbCollection(window.db,"leaderboard"), window.fbOrderBy("score","desc"), window.fbLimit(50));
-    lbUnsubscribe = window.fbOnSnapshot(q, snap => {
-      if(snap.empty){ el.innerHTML='<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">No teams yet — be the first to finish!</p>'; return; }
+    const q = window.db.collection("leaderboard").orderBy("score", "desc").limit(50);
+    lbUnsubscribe = q.onSnapshot(snap => {
+      if(snap.empty){
+        el.innerHTML='<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">No teams yet — be the first to finish!</p>';
+        return;
+      }
       let html='', rank=1;
       snap.forEach(doc => {
         const t=doc.data(), rc=rank===1?'gold':rank===2?'silver':rank===3?'bronze':'';
@@ -792,8 +794,8 @@ function renderLB(){
       });
       el.innerHTML = html;
     }, err => {
-      console.error(err);
-      el.innerHTML='<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">Could not load leaderboard.</p>';
+      console.error("Leaderboard listener error:", err);
+      el.innerHTML='<p style="text-align:center;color:var(--wrong-tx);font-size:0.85rem;padding:28px 0">Firestore blocked — update Security Rules.</p>';
     });
   } catch(e){
     el.innerHTML='<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">Firestore configuration error.</p>';
