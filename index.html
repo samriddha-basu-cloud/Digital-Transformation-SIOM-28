@@ -2,745 +2,825 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Transform or Fall Behind</title>
 
-<!-- ── Firebase Compat SDKs ──────────────────────────────────────────────
-     Loaded synchronously in <head> — no ES module race conditions.
-     These replace the previous type="module" import which caused the
-     "message channel closed" error and window.db race condition.        -->
+<!-- Firebase Compat SDKs — synchronous, no module race condition -->
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 <script>
 /*
- * ════════════════════════════════════════════════════════════════════════
- *  FIRESTORE SECURITY RULES — MUST DO THIS OR ALL WRITES WILL FAIL
- * ════════════════════════════════════════════════════════════════════════
- *  1. Go to https://console.firebase.google.com
- *  2. Select project → Firestore Database → Rules tab
- *  3. Replace everything with the rules below, then click Publish:
+ * REQUIRED — FIRESTORE RULES (Firebase Console → Firestore → Rules → Publish):
  *
- *  rules_version = '2';
- *  service cloud.firestore {
- *    match /databases/{database}/documents {
- *      match /leaderboard/{doc} {
- *        allow read, write: if true;
- *      }
- *    }
- *  }
- *
- *  Without this, every write is silently rejected (permission-denied).
- * ════════════════════════════════════════════════════════════════════════
+ * rules_version = '2';
+ * service cloud.firestore {
+ *   match /databases/{database}/documents {
+ *     match /leaderboard/{doc} {
+ *       allow read, write: if true;
+ *     }
+ *   }
+ * }
  */
 try {
   firebase.initializeApp({
-    apiKey:            "AIzaSyBt0i5mCJcQY7rw-MQx34dhe9-IBxKNkxA",
-    authDomain:        "digital-transformation-16b42.firebaseapp.com",
-    projectId:         "digital-transformation-16b42",
-    storageBucket:     "digital-transformation-16b42.firebasestorage.app",
-    messagingSenderId: "202375001463",
-    appId:             "1:202375001463:web:ce93f3772695be60435d72"
+    apiKey:"AIzaSyBt0i5mCJcQY7rw-MQx34dhe9-IBxKNkxA",
+    authDomain:"digital-transformation-16b42.firebaseapp.com",
+    projectId:"digital-transformation-16b42",
+    storageBucket:"digital-transformation-16b42.firebasestorage.app",
+    messagingSenderId:"202375001463",
+    appId:"1:202375001463:web:ce93f3772695be60435d72"
   });
   window.db = firebase.firestore();
   console.log("✅ Firebase ready");
-} catch(e) {
-  console.error("❌ Firebase init error:", e);
-  window.db = null;
-}
+} catch(e) { console.error("❌ Firebase:",e); window.db=null; }
 </script>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@600;700;800&display=swap');
-
-:root {
-  --bg:          #080b10;
-  --surface:     #0f1520;
-  --surface-2:   #141c2a;
-  --surface-3:   #1a2438;
-  --border:      #1e2d45;
-  --border-2:    #243350;
-  --text-1:      #e2ebf8;
-  --text-2:      #7a92b4;
-  --text-3:      #445a7a;
-  --accent:      #3b7ff5;
-  --accent-glow: rgba(59,127,245,0.18);
-  --correct-bg:  #071a10;
-  --correct-bd:  #1a6b35;
-  --correct-tx:  #3dd68c;
-  --wrong-bg:    #1a0609;
-  --wrong-bd:    #7a1f1a;
-  --wrong-tx:    #f87171;
-  --ok-bg:       #1a1206;
-  --ok-bd:       #8a5a0a;
-  --ok-tx:       #f0a82e;
-  --radius:      10px;
+/* ── Variables ─────────────────────────────────────────────────────── */
+:root{
+  --bg:     #05080f;
+  --s1:     #0b1525;
+  --s2:     #0f1d35;
+  --s3:     #152440;
+  --s4:     #1c2e4e;
+  --bd:     rgba(59,130,246,.13);
+  --bd2:    rgba(59,130,246,.30);
+  --bd3:    rgba(59,130,246,.50);
+  --t1:     #e2edfe;
+  --t2:     #6b8ab5;
+  --t3:     #344f6e;
+  --blue:   #3b82f6;
+  --blue2:  #7cb8ff;
+  --glow:   rgba(59,130,246,.10);
+  --gn:     #34d399;  --gn-bg:rgba(52,211,153,.08);  --gn-bd:rgba(52,211,153,.28);
+  --am:     #fbbf24;  --am-bg:rgba(251,191,36,.07);   --am-bd:rgba(251,191,36,.28);
+  --rd:     #f87171;  --rd-bg:rgba(248,113,113,.08);  --rd-bd:rgba(248,113,113,.28);
+  --pu:     #a78bfa;  --pu-bg:rgba(167,139,250,.07);  --pu-bd:rgba(167,139,250,.25);
+  --r:12px; --rs:8px;
 }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  background: var(--bg);
+body{
+  min-height:100dvh;
+  background:var(--bg);
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59,127,245,0.10) 0%, transparent 70%),
-    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,45,69,0.3) 40px),
-    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,45,69,0.3) 40px);
-  color: var(--text-1);
-  font-family: 'DM Mono', 'Fira Mono', monospace;
-  padding: 24px 16px;
+    radial-gradient(ellipse 65% 35% at 50% 0%,rgba(59,130,246,.12) 0%,transparent 60%),
+    radial-gradient(circle at 1px 1px,rgba(59,130,246,.07) 1px,transparent 0);
+  background-size:auto,30px 30px;
+  color:var(--t1);
+  font-family:'Sora',system-ui,sans-serif;
+  padding:16px 14px 48px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
 }
 
-h1 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(1.6rem, 4vw, 2.1rem);
-  font-weight: 800;
-  color: var(--text-1);
-  text-align: center;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
+/* ── Screen System ─────────────────────────────────────────────────── */
+.screen{display:none;width:100%;max-width:700px;flex-direction:column;gap:12px;}
+.screen.active{display:flex;}
+
+/* ── Card ──────────────────────────────────────────────────────────── */
+.card{
+  background:linear-gradient(155deg,var(--s1) 0%,var(--s2) 100%);
+  border:1px solid var(--bd);
+  border-radius:var(--r);
+  padding:22px 20px;
+  position:relative;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    inset 0 0 0 1px rgba(59,130,246,.04),
+    0 20px 60px rgba(0,0,0,.55);
 }
-.sub {
-  font-size: 0.82rem;
-  color: var(--text-3);
-  text-align: center;
-  margin-top: 6px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+/* Corner bracket accents */
+.card::before,.card::after{
+  content:'';position:absolute;width:12px;height:12px;
+  pointer-events:none;transition:opacity .3s;
 }
+.card::before{top:-1px;left:-1px;border-top:1.5px solid var(--blue);border-left:1.5px solid var(--blue);border-radius:3px 0 0 0;}
+.card::after {bottom:-1px;right:-1px;border-bottom:1.5px solid var(--blue);border-right:1.5px solid var(--blue);border-radius:0 0 3px 0;}
+.card.warn-card::before,.card.warn-card::after{border-color:var(--am);}
 
-.screen { display: none; width: 100%; max-width: 760px; flex-direction: column; align-items: center; gap: 18px; }
-.screen.active { display: flex; }
+/* ── Typography ────────────────────────────────────────────────────── */
+.page-title{font-size:clamp(1.65rem,5vw,2.3rem);font-weight:800;letter-spacing:-.04em;line-height:1.1;text-align:center;color:var(--t1);}
+.page-title span{color:var(--blue2);}
+.page-sub{font-size:.68rem;font-weight:500;color:var(--t3);letter-spacing:.14em;text-transform:uppercase;text-align:center;margin-top:5px;}
+.sec-label{font-size:.6rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px;}
+.mono{font-family:'JetBrains Mono',monospace;}
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: clamp(20px, 4vw, 36px);
-  width: 100%;
-  box-shadow: 0 0 0 1px rgba(59,127,245,0.04), 0 24px 64px rgba(0,0,0,0.55);
-  position: relative;
-  overflow: hidden;
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.btn{
+  display:block;width:100%;padding:13px 18px;margin-top:10px;
+  border-radius:var(--rs);font-family:'Sora',sans-serif;font-size:.88rem;font-weight:700;
+  letter-spacing:.02em;cursor:pointer;transition:all .18s;text-align:center;border:1px solid transparent;
 }
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59,127,245,0.4), transparent);
+.btn-primary{
+  background:linear-gradient(135deg,#4a8af8,#2568e0);color:#fff;
+  border-color:rgba(74,138,248,.5);
+  box-shadow:0 4px 22px rgba(59,130,246,.30),inset 0 1px 0 rgba(255,255,255,.12);
 }
+.btn-primary:hover{box-shadow:0 6px 30px rgba(59,130,246,.50),inset 0 1px 0 rgba(255,255,255,.12);transform:translateY(-1px);}
+.btn-primary:active{transform:none;box-shadow:0 2px 10px rgba(59,130,246,.20);}
+.btn-primary:disabled{background:var(--s3);border-color:var(--bd);color:var(--t3);box-shadow:none;transform:none;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--t2);border-color:var(--bd2);}
+.btn-ghost:hover{background:var(--glow);color:var(--t1);border-color:var(--bd3);}
+.btn-warn{background:transparent;color:var(--am);border-color:var(--am-bd);}
+.btn-warn:hover{background:var(--am-bg);}
 
-.btn-primary {
-  width: 100%; padding: 14px 24px; margin-top: 12px;
-  background: linear-gradient(135deg, #3b7ff5 0%, #2563d4 100%);
-  color: #fff; border: none; border-radius: var(--radius);
-  font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700;
-  letter-spacing: 0.02em; cursor: pointer;
-  box-shadow: 0 4px 20px rgba(59,127,245,0.25);
-  transition: box-shadow 0.2s, transform 0.1s;
+/* ── Input ─────────────────────────────────────────────────────────── */
+.field-label{display:block;font-size:.65rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:7px;}
+input[type=text]{
+  width:100%;padding:12px 15px;
+  background:var(--s3);border:1px solid var(--bd);border-radius:var(--rs);
+  color:var(--t1);font-family:'Sora',sans-serif;font-size:.93rem;outline:none;
+  transition:border-color .2s,box-shadow .2s;
 }
-.btn-primary:hover  { box-shadow: 0 6px 28px rgba(59,127,245,0.45); }
-.btn-primary:active { transform: scale(0.99); }
-.btn-primary:disabled { background: var(--surface-3); color: var(--text-3); box-shadow: none; cursor: not-allowed; }
+input[type=text]::placeholder{color:var(--t3);}
+input[type=text]:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.14);}
 
-.btn-ghost {
-  width: 100%; padding: 12px 24px; margin-top: 12px;
-  background: transparent; border: 1px solid var(--border-2); color: var(--text-2);
-  border-radius: var(--radius); font-family: 'DM Mono', monospace; font-size: 0.85rem;
-  font-weight: 500; cursor: pointer; transition: all 0.2s;
+/* ── Divider ────────────────────────────────────────────────────────── */
+.hr{height:1px;background:var(--bd);margin:18px 0;}
+
+/* ── Resume Card ────────────────────────────────────────────────────── */
+.resume-pulse{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--am);margin-bottom:12px;
 }
-.btn-ghost:hover { border-color: var(--accent); color: var(--text-1); background: var(--accent-glow); }
-
-.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
-.role-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
-.role-title { font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
-.role-desc  { font-size: 0.78rem; color: var(--text-2); line-height: 1.55; }
-
-label { font-size: 0.75rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; }
-input[type=text] {
-  width: 100%; padding: 13px 16px; margin-top: 8px;
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius); color: var(--text-1);
-  font-family: 'DM Mono', monospace; font-size: 0.95rem;
-  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+.resume-pulse::before{
+  content:'';width:6px;height:6px;border-radius:50%;background:var(--am);
+  animation:blink 1.4s infinite;
 }
-input[type=text]::placeholder { color: var(--text-3); }
-input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,127,245,0.12); }
+.resume-name{font-size:1.05rem;font-weight:700;color:var(--t1);margin-bottom:4px;}
+.resume-meta{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--t2);margin-bottom:18px;}
 
-.meter-wrap  { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
-.meter-label { font-size: 0.65rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.12em; white-space: nowrap; }
-.meter-bar   { flex: 1; height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
-.meter-fill  { height: 100%; background: linear-gradient(90deg, #2563d4, #3b7ff5, #60a5fa); border-radius: 3px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
-.meter-score { font-size: 0.8rem; font-weight: 500; color: var(--accent); min-width: 64px; text-align: right; }
+/* ── Role Grid ─────────────────────────────────────────────────────── */
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;}
+.role-card{background:rgba(0,0,0,.2);border:1px solid var(--bd);border-radius:var(--rs);padding:12px;}
+.role-title{font-size:.62rem;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px;}
+.role-desc{font-size:.74rem;color:var(--t2);line-height:1.5;}
 
-.chapter-badge {
-  display: inline-block; font-size: 0.65rem; font-weight: 500;
-  padding: 4px 10px; border-radius: 4px; margin-bottom: 14px;
-  background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border);
-  text-transform: uppercase; letter-spacing: 0.1em;
+/* ── Game Header ────────────────────────────────────────────────────── */
+.game-hdr{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:4px 2px;}
+.game-hdr-title{font-size:.72rem;font-weight:700;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;}
+.team-pill{display:flex;align-items:center;gap:7px;padding:5px 13px;background:var(--s2);border:1px solid var(--bd);border-radius:100px;font-size:.75rem;font-weight:600;color:var(--t1);white-space:nowrap;max-width:180px;overflow:hidden;}
+.team-dot{width:6px;height:6px;background:var(--gn);border-radius:50%;flex-shrink:0;animation:blink 2s infinite;}
+
+/* ── Stats Row ─────────────────────────────────────────────────────── */
+.stats-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.score-wrap{flex:1;min-width:0;}
+.score-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.score-lbl{font-size:.58rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.12em;}
+.score-val{font-family:'JetBrains Mono',monospace;font-size:.78rem;font-weight:700;color:var(--blue2);}
+.meter-bar{height:4px;background:var(--s4);border-radius:2px;overflow:hidden;}
+.meter-fill{height:100%;background:linear-gradient(90deg,#2568e0,#4a8af8,#7cb8ff);border-radius:2px;transition:width .7s cubic-bezier(.4,0,.2,1);}
+
+/* ── Rank Badge ─────────────────────────────────────────────────────── */
+.rank-badge{
+  display:none;align-items:center;gap:5px;
+  padding:6px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:100px;
+  white-space:nowrap;flex-shrink:0;
 }
+.rank-badge.visible{display:flex;}
+.rank-num{font-family:'JetBrains Mono',monospace;font-size:.82rem;font-weight:700;color:var(--blue2);}
+.rank-of {font-size:.65rem;color:var(--t3);}
 
-.phase-label { font-size: 0.65rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
-.s-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-1); margin-bottom: 12px; }
-.s-text  { font-size: 0.88rem; color: var(--text-2); line-height: 1.7; padding: 16px 18px; background: var(--surface-2); border-radius: var(--radius); border-left: 3px solid var(--accent); margin-bottom: 22px; }
+/* ── Phase Tag ─────────────────────────────────────────────────────── */
+.phase-tag{display:inline-flex;align-items:center;gap:5px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--t3);margin-bottom:10px;}
+.phase-tag::before{content:'';width:4px;height:4px;background:var(--blue);border-radius:50%;}
 
-.rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 20px; }
-.rp-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
-.rp-role { font-size: 0.65rem; font-weight: 700; color: var(--accent); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.1em; }
-.rp-q    { font-size: 0.78rem; color: var(--text-2); line-height: 1.5; }
+/* ── Chapter Badge ──────────────────────────────────────────────────── */
+.ch-badge{display:inline-flex;align-items:center;gap:7px;font-size:.6rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;}
+.ch-dot{width:5px;height:5px;background:var(--blue);border-radius:50%;}
 
-.timer-ring {
-  display: flex; flex-direction: column; align-items: center;
-  margin: 0 auto 22px; position: relative; width: 100px; height: 100px;
+/* ── Scenario ───────────────────────────────────────────────────────── */
+.s-title{font-size:clamp(.98rem,2.8vw,1.18rem);font-weight:700;color:var(--t1);margin-bottom:12px;line-height:1.35;}
+.s-text{font-size:.86rem;color:var(--t2);line-height:1.78;padding:15px 17px;background:rgba(0,0,0,.22);border-radius:var(--rs);border-left:2px solid var(--blue);margin-bottom:18px;}
+
+/* ── Role Prompts ───────────────────────────────────────────────────── */
+.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;}
+.rp-item{background:rgba(0,0,0,.15);border:1px solid var(--bd);border-radius:var(--rs);padding:11px;}
+.rp-role{font-size:.6rem;font-weight:700;color:var(--blue2);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px;}
+.rp-q{font-size:.74rem;color:var(--t2);line-height:1.5;}
+
+/* ── Timer ──────────────────────────────────────────────────────────── */
+.timer-wrap{display:flex;flex-direction:column;align-items:center;margin:0 auto 18px;position:relative;width:88px;height:88px;}
+.timer-svg{position:absolute;top:0;left:0;transform:rotate(-90deg);}
+.timer-track{fill:none;stroke:var(--s4);stroke-width:5;}
+.timer-prog{fill:none;stroke:var(--blue);stroke-width:5;stroke-dasharray:245;stroke-dashoffset:0;stroke-linecap:round;transition:stroke-dashoffset 1s linear,stroke .3s;}
+.timer-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:700;color:var(--t1);}
+.timer-sub{font-size:.56rem;color:var(--t3);margin-top:92px;text-transform:uppercase;letter-spacing:.1em;}
+
+/* ── Lock Message ───────────────────────────────────────────────────── */
+.lock-msg{font-size:.76rem;font-weight:500;text-align:center;padding:10px 14px;border-radius:var(--rs);margin-bottom:14px;transition:all .3s;background:var(--am-bg);border:1px solid var(--am-bd);color:var(--am);}
+.lock-msg.open{background:var(--gn-bg);border-color:var(--gn-bd);color:var(--gn);}
+
+/* ── Choice Buttons ─────────────────────────────────────────────────── */
+.choice-btn{
+  display:block;width:100%;padding:13px 16px 13px 18px;margin-bottom:8px;
+  background:var(--s2);border:1px solid var(--bd);border-radius:var(--rs);
+  color:var(--t2);font-family:'Sora',sans-serif;font-size:.84rem;line-height:1.55;
+  text-align:left;cursor:pointer;position:relative;transition:all .16s;
 }
-.timer-ring svg    { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
-.timer-ring circle { fill: none; stroke: var(--surface-3); stroke-width: 6; }
-.timer-ring .prog  { stroke: var(--accent); stroke-dasharray: 283; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke 0.4s; }
-.timer-num   { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.35rem; font-weight: 500; color: var(--text-1); }
-.timer-label { font-size: 0.62rem; color: var(--text-3); margin-top: 108px; text-transform: uppercase; letter-spacing: 0.1em; }
+.choice-btn::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:2px;background:var(--blue);border-radius:2px;opacity:0;transition:opacity .16s;}
+.choice-btn:hover:not(:disabled){border-color:var(--bd2);color:var(--t1);background:var(--s3);}
+.choice-btn:hover:not(:disabled)::before{opacity:1;}
+.choice-btn:disabled{cursor:default;opacity:.38;}
+.choice-btn.correct{border-color:var(--gn-bd);background:var(--gn-bg);color:var(--gn);opacity:1;}
+.choice-btn.correct::before{opacity:1;background:var(--gn);}
+.choice-btn.ok     {border-color:var(--am-bd);background:var(--am-bg);color:var(--am);opacity:1;}
+.choice-btn.ok::before     {opacity:1;background:var(--am);}
+.choice-btn.wrong  {border-color:var(--rd-bd);background:var(--rd-bg);color:var(--rd);opacity:1;}
+.choice-btn.wrong::before  {opacity:1;background:var(--rd);}
 
-.locked-msg { font-size: 0.8rem; color: var(--ok-tx); text-align: center; padding: 10px 14px; background: var(--ok-bg); border-radius: var(--radius); border: 1px solid var(--ok-bd); margin-bottom: 16px; font-weight: 500; transition: all 0.3s; }
-.locked-msg.unlocked { color: var(--correct-tx); background: var(--correct-bg); border-color: var(--correct-bd); }
+/* ── Feedback Panels ────────────────────────────────────────────────── */
+.panel{display:none;padding:14px 16px;border-radius:var(--rs);font-size:.84rem;line-height:1.72;margin-bottom:10px;border:1px solid transparent;animation:slideUp .28s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.pfb.correct{background:var(--gn-bg);border-color:var(--gn-bd);color:var(--gn);}
+.pfb.ok     {background:var(--am-bg);border-color:var(--am-bd);color:var(--am);}
+.pfb.wrong  {background:var(--rd-bg);border-color:var(--rd-bd);color:var(--rd);}
+.pins{background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.22);color:var(--blue2);}
+.pcurve{background:var(--pu-bg);border-color:var(--pu-bd);color:var(--pu);}
+.prefl{background:var(--am-bg);border-color:var(--am-bd);color:var(--am);}
+.p-head{display:block;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px;opacity:.75;}
 
-.choice-btn {
-  width: 100%; padding: 15px 18px; margin-bottom: 10px;
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius); color: var(--text-2);
-  font-family: 'DM Mono', monospace; font-size: 0.85rem; line-height: 1.55;
-  text-align: left; cursor: pointer; transition: all 0.2s;
+/* ── End Screen ─────────────────────────────────────────────────────── */
+.end-wrap{text-align:center;padding:24px 16px;}
+.end-score{font-family:'JetBrains Mono',monospace;font-size:clamp(3rem,10vw,5rem);font-weight:700;color:var(--t1);line-height:1;margin:14px 0 3px;}
+.end-max{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--t3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:16px;}
+.end-badge{display:inline-block;padding:5px 16px;border-radius:5px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:18px;}
+.end-msg{font-size:.86rem;color:var(--t2);line-height:1.72;max-width:440px;margin:0 auto 22px;}
+.end-rank-box{display:flex;align-items:center;justify-content:center;gap:14px;padding:14px 18px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--rs);margin-bottom:20px;}
+.end-rank-num{font-family:'JetBrains Mono',monospace;font-size:2.2rem;font-weight:700;color:var(--blue2);line-height:1;}
+.end-rank-info{text-align:left;}
+.end-rank-lbl{font-size:.72rem;color:var(--t2);line-height:1.4;}
+#save-status-end{min-height:28px;font-size:.76rem;text-align:center;padding:4px 0;}
+
+/* ── Leaderboard ────────────────────────────────────────────────────── */
+.lb-title{font-size:1.2rem;font-weight:800;color:var(--t1);text-align:center;margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.lb-sub{font-size:.64rem;color:var(--t3);text-align:center;text-transform:uppercase;letter-spacing:.12em;margin-bottom:18px;}
+.lb-row{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:var(--rs);background:var(--s2);border:1px solid var(--bd);margin-bottom:6px;font-size:.82rem;}
+.lb-row.me{border-color:var(--bd2);background:var(--s3);}
+.lb-rank{font-family:'JetBrains Mono',monospace;font-weight:700;min-width:20px;color:var(--t3);font-size:.78rem;}
+.lb-rank.g{color:#d4a62a;} .lb-rank.s{color:#7a9ac0;} .lb-rank.b{color:#8c5a28;}
+.lb-name{flex:1;color:var(--t1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lb-bdg{font-size:.6rem;padding:2px 8px;border-radius:4px;background:var(--s3);color:var(--t3);border:1px solid var(--bd);white-space:nowrap;}
+.lb-score{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--blue2);white-space:nowrap;font-size:.8rem;}
+
+/* ── Utilities ──────────────────────────────────────────────────────── */
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--gn);display:inline-block;animation:blink 1.5s infinite;}
+.prog-dot{width:5px;height:5px;border-radius:50%;background:var(--blue);display:inline-block;vertical-align:middle;animation:blink 1.5s infinite;margin-right:4px;}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--s4);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:7px;}
+.notice{font-size:.67rem;color:var(--t3);text-align:center;margin-top:12px;line-height:1.55;}
+.ok-txt{color:var(--gn);} .err-txt{color:var(--rd);} .muted{color:var(--t2);}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ── Mobile ─────────────────────────────────────────────────────────── */
+@media(max-width:520px){
+  body{padding:12px 10px 40px;}
+  .card{padding:16px;}
+  .role-grid,.rp-grid{grid-template-columns:1fr;}
+  .game-hdr-title{display:none;}
+  .stats-row{flex-wrap:wrap;gap:8px;}
+  .rank-badge.visible{order:3;width:100%;justify-content:center;}
+  .s-text{font-size:.83rem;padding:12px 13px;}
+  .timer-wrap{width:80px;height:80px;}
+  .timer-num{font-size:1.05rem;}
+  .timer-sub{margin-top:84px;}
+  .choice-btn{font-size:.82rem;padding:12px 14px;}
+  .end-rank-box{flex-direction:column;gap:6px;text-align:center;}
+  .end-rank-info{text-align:center;}
 }
-.choice-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text-1); background: var(--accent-glow); }
-.choice-btn:disabled { cursor: default; opacity: 0.45; }
-.choice-btn.correct { border-color: var(--correct-bd); background: var(--correct-bg); color: var(--correct-tx); opacity: 1; }
-.choice-btn.wrong   { border-color: var(--wrong-bd);   background: var(--wrong-bg);   color: var(--wrong-tx);   opacity: 1; }
-.choice-btn.ok      { border-color: var(--ok-bd);      background: var(--ok-bg);      color: var(--ok-tx);      opacity: 1; }
-
-.fb, .insight, .curveball, .reflection {
-  display: none; padding: 15px 18px; border-radius: var(--radius);
-  font-size: 0.85rem; line-height: 1.7; margin-bottom: 12px;
-  border: 1px solid transparent; animation: fadeUp 0.35s ease;
-}
-@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-.fb.correct { background: var(--correct-bg); border-color: var(--correct-bd); color: var(--correct-tx); }
-.fb.wrong   { background: var(--wrong-bg);   border-color: var(--wrong-bd);   color: var(--wrong-tx); }
-.fb.ok      { background: var(--ok-bg);      border-color: var(--ok-bd);      color: var(--ok-tx); }
-
-.insight   { background: rgba(59,127,245,0.07); border-color: rgba(59,127,245,0.22); color: #7fb3f8; }
-.insight   strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#5a9af0; }
-.curveball { background: rgba(168,85,247,0.07); border-color: rgba(168,85,247,0.22); color: #c4a4f8; }
-.curveball strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#a78bfa; }
-.reflection{ background: rgba(240,168,46,0.06); border-color: rgba(138,90,10,0.35);  color: var(--ok-tx); }
-.reflection strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#c8913a; }
-
-.spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border-2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px; }
-@keyframes spin { to { transform:rotate(360deg); } }
-
-.end-score { font-family:'Syne',sans-serif; font-size:clamp(3rem,8vw,4.5rem); font-weight:800; color:var(--text-1); line-height:1; margin:16px 0 6px; text-align:center; }
-.end-badge { display:inline-block; padding:7px 20px; border-radius:6px; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:20px; font-family:'Syne',sans-serif; }
-
-.lb-row  { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--radius); background:var(--surface-2); border:1px solid var(--border); margin-bottom:8px; font-size:0.85rem; }
-.lb-rank { font-weight:500; min-width:24px; color:var(--text-3); }
-.lb-rank.gold   { color:#d29922; }
-.lb-rank.silver { color:#7a92b4; }
-.lb-rank.bronze { color:#7a4e1a; }
-.lb-name  { flex:1; color:var(--text-1); font-weight:500; }
-.lb-badge { font-size:0.65rem; padding:3px 10px; border-radius:4px; background:var(--surface-3); color:var(--text-3); border:1px solid var(--border); white-space:nowrap; }
-.lb-pts   { font-weight:700; color:var(--accent); white-space:nowrap; }
-
-.live-dot     { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3dd68c; margin-right:8px; animation:pulse 1.5s infinite; vertical-align:middle; }
-.progress-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-right:5px; animation:pulse 1.5s infinite; vertical-align:middle; flex-shrink:0; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
-
-.notice { font-size:0.73rem; color:var(--text-3); text-align:center; margin-top:16px; padding:10px; background:var(--surface-2); border-radius:var(--radius); border:1px solid var(--border); }
-
-.game-header { display:flex; justify-content:space-between; align-items:center; width:100%; max-width:760px; padding:0 4px; }
-.game-header h1 { font-size:1rem; }
-.team-tag { font-size:0.72rem; font-weight:500; color:var(--text-2); background:var(--surface-2); padding:5px 14px; border-radius:6px; border:1px solid var(--border); }
-
-.save-status { font-size:0.78rem; padding:8px 14px; border-radius:6px; margin:10px 0; text-align:center; }
-.save-ok  { background:var(--correct-bg); color:var(--correct-tx); border:1px solid var(--correct-bd); }
-.save-err { background:var(--wrong-bg);   color:var(--wrong-tx);   border:1px solid var(--wrong-bd); }
-
-@media(max-width:580px){
-  .role-grid,.rp-grid { grid-template-columns:1fr; }
-  .card { padding:18px; }
-  .lb-row { flex-wrap:wrap; gap:6px; }
-  .lb-badge { order:3; margin-left:36px; }
+@media(max-width:360px){
+  .card{padding:13px;}
+  .team-pill{max-width:140px;font-size:.7rem;}
 }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════ SETUP ══════════════════════════════ -->
+<!-- ═══════════════════════ SETUP ═══════════════════════ -->
 <div class="screen active" id="sc-setup">
-  <div style="text-align:center;padding:12px 0 10px">
-    <h1>Transform or Fall Behind</h1>
-    <p class="sub">A Strategic Team Game on Digital Transformation</p>
+  <div style="padding:16px 0 12px">
+    <div class="page-title">Transform<br><span>or Fall Behind</span></div>
+    <p class="page-sub">Strategic Team Game · Digital Transformation</p>
   </div>
-  <div class="card">
-    <p style="font-size:0.8rem;color:var(--text-3);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.08em;font-weight:500;">Assign roles before starting</p>
+
+  <!-- Resume Card (shown when saved game exists) -->
+  <div class="card warn-card" id="resume-card" style="display:none">
+    <div class="resume-pulse">Game In Progress</div>
+    <div class="resume-name" id="resume-name"></div>
+    <div class="resume-meta" id="resume-meta"></div>
+    <button class="btn btn-primary" onclick="resumeGame()">Resume Game</button>
+    <button class="btn btn-warn"   onclick="discardAndNew()">Start Fresh Instead</button>
+  </div>
+
+  <!-- Normal Setup -->
+  <div class="card" id="normal-setup">
+    <div class="sec-label">Assign Roles to Team Members</div>
     <div class="role-grid">
       <div class="role-card"><div class="role-title">Team Leader (CEO)</div><div class="role-desc">Drives discussion & makes the final call after consensus.</div></div>
       <div class="role-card"><div class="role-title">Finance Head</div><div class="role-desc">Questions costs, ROI, and budget risk at every step.</div></div>
-      <div class="role-card"><div class="role-title">IT Manager</div><div class="role-desc">Considers technical feasibility and implementation realities.</div></div>
-      <div class="role-card"><div class="role-title">HR Lead</div><div class="role-desc">Focuses on employee impact and resistance to change.</div></div>
-      <div class="role-card"><div class="role-title">Customer Experience</div><div class="role-desc">Advocates for customer needs and satisfaction outcomes.</div></div>
-      <div class="role-card"><div class="role-title">Operations Head</div><div class="role-desc">Thinks about process impact, flow, and feasibility.</div></div>
+      <div class="role-card"><div class="role-title">IT Manager</div><div class="role-desc">Technical feasibility and implementation realities.</div></div>
+      <div class="role-card"><div class="role-title">HR Lead</div><div class="role-desc">Employee impact and resistance to change.</div></div>
+      <div class="role-card"><div class="role-title">Customer Experience</div><div class="role-desc">Advocates for customer needs and satisfaction.</div></div>
+      <div class="role-card"><div class="role-title">Operations Head</div><div class="role-desc">Process impact, operational flow, and feasibility.</div></div>
     </div>
-    <div style="margin-top:22px">
-      <label>Team Name</label>
-      <input type="text" id="team-input" placeholder="e.g. Team Alpha, The Disruptors" maxlength="30"/>
-    </div>
-    <button class="btn-primary" onclick="startGame()">Start Game</button>
-    <button class="btn-ghost" onclick="showScreen('sc-lb')">View Live Leaderboard</button>
-    <div class="notice">Your team appears on the leaderboard the moment you click Start. Scores update live after every question.</div>
+    <div class="hr"></div>
+    <label class="field-label" for="team-input">Team Name</label>
+    <input type="text" id="team-input" placeholder="e.g. Team Alpha, The Disruptors" maxlength="30"/>
+    <button class="btn btn-primary" onclick="startGame()">Start Game</button>
+    <button class="btn btn-ghost"   onclick="showScreen('sc-lb')">View Live Leaderboard</button>
+    <p class="notice">Your team appears on the leaderboard the moment you start.<br>Scores update live after every question. Progress is saved in your browser.</p>
   </div>
 </div>
 
-<!-- ══════════════════════════════ GAME ══════════════════════════════ -->
+<!-- ═══════════════════════ GAME ═══════════════════════ -->
 <div class="screen" id="sc-game">
-  <div class="game-header">
-    <h1>Transform or Fall Behind</h1>
-    <span class="team-tag" id="team-label"></span>
+  <div class="game-hdr">
+    <span class="game-hdr-title">Transform or Fall Behind</span>
+    <div class="team-pill"><span class="team-dot"></span><span id="team-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div>
   </div>
+
   <div class="card">
-    <div class="meter-wrap">
-      <span class="meter-label">Score</span>
-      <div class="meter-bar"><div class="meter-fill" id="meter" style="width:0%"></div></div>
-      <span class="meter-score" id="score-display">0 / 160</span>
+    <!-- Stats: Score + Rank -->
+    <div class="stats-row">
+      <div class="score-wrap">
+        <div class="score-top">
+          <span class="score-lbl">Score</span>
+          <span class="score-val mono" id="score-display">0/160</span>
+        </div>
+        <div class="meter-bar"><div class="meter-fill" id="meter" style="width:0%"></div></div>
+      </div>
+      <div class="rank-badge" id="rank-badge">
+        <span class="rank-num" id="rank-num">#–</span>
+        <span class="rank-of" id="rank-of">of –</span>
+      </div>
     </div>
 
+    <!-- Discussion -->
     <div id="phase-discuss" style="display:none">
-      <div class="phase-label">Discussion Phase</div>
-      <span class="chapter-badge" id="ch-badge">Chapter 1 of 8</span>
+      <div class="phase-tag">Discussion Phase</div>
+      <div class="ch-badge"><span class="ch-dot"></span><span id="ch-badge">Chapter 1 of 8</span></div>
       <div class="s-title" id="s-title"></div>
       <div class="s-text"  id="s-text"></div>
-      <div style="margin-bottom:18px">
-        <div class="phase-label" style="margin-bottom:8px">Role Discussion Prompts</div>
-        <div class="rp-grid" id="rp-grid"></div>
-      </div>
-      <div class="timer-ring">
-        <svg width="100" height="100" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="45"/>
-          <circle class="prog" id="timer-prog" cx="50" cy="50" r="45"/>
+      <div class="sec-label">Role Discussion Prompts</div>
+      <div class="rp-grid" id="rp-grid"></div>
+      <div class="timer-wrap">
+        <svg class="timer-svg" width="88" height="88" viewBox="0 0 88 88">
+          <circle class="timer-track" cx="44" cy="44" r="39"/>
+          <circle class="timer-prog"  cx="44" cy="44" r="39" id="timer-prog"/>
         </svg>
-        <div class="timer-num" id="timer-num">3:00</div>
-        <div class="timer-label">Team Time</div>
+        <span class="timer-num mono" id="timer-num">3:00</span>
+        <span class="timer-sub">Team Time</span>
       </div>
-      <div class="locked-msg" id="locked-msg">Discuss with your team — Leader can answer when timer ends</div>
+      <div class="lock-msg" id="lock-msg">Discuss with your team — Leader can answer when timer ends</div>
       <div id="choices-div"></div>
     </div>
 
+    <!-- Feedback -->
     <div id="phase-feedback" style="display:none">
-      <div class="phase-label">Feedback &amp; Reflection</div>
-      <span class="chapter-badge" id="ch-badge2"></span>
-      <div class="s-title"    id="s-title2"></div>
-      <div class="fb"         id="fb"></div>
-      <div class="insight"    id="insight"></div>
-      <div class="curveball"  id="curveball"></div>
-      <div class="reflection" id="reflection"></div>
-      <button class="btn-primary" id="next-btn" onclick="nextChapter()" style="display:none">Next Chapter</button>
+      <div class="phase-tag">Feedback &amp; Reflection</div>
+      <div class="ch-badge"><span class="ch-dot"></span><span id="ch-badge2">Chapter 1 of 8</span></div>
+      <div class="s-title" id="s-title2"></div>
+      <div class="panel pfb"   id="fb"></div>
+      <div class="panel pins"  id="insight"></div>
+      <div class="panel pcurve" id="curveball"></div>
+      <div class="panel prefl" id="reflection"></div>
+      <button class="btn btn-primary" id="next-btn" onclick="nextChapter()" style="display:none">Next Chapter →</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════ END ══════════════════════════════ -->
+<!-- ═══════════════════════ END ═══════════════════════ -->
 <div class="screen" id="sc-end">
-  <div class="card" style="text-align:center;padding:clamp(24px,5vw,48px)">
-    <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text-1);margin-bottom:10px;">Game Complete</div>
-    <div class="end-score" id="end-score"></div>
-    <div style="font-size:0.72rem;color:var(--text-3);margin-bottom:18px;text-transform:uppercase;letter-spacing:0.12em;">out of 160 points</div>
-    <div class="end-badge" id="end-badge"></div>
-    <div style="font-size:0.88rem;color:var(--text-2);line-height:1.7;margin-bottom:24px;max-width:480px;margin-left:auto;margin-right:auto" id="end-msg"></div>
-    <div id="save-status-end"></div>
-    <button class="btn-primary" onclick="showScreen('sc-lb')">View Live Leaderboard</button>
-    <button class="btn-ghost"   onclick="resetGame()">Play Again</button>
+  <div class="card">
+    <div class="end-wrap">
+      <div class="page-sub">Game Complete</div>
+      <div class="end-score mono" id="end-score"></div>
+      <div class="end-max mono">out of 160 points</div>
+      <div class="end-badge" id="end-badge"></div>
+      <div class="end-msg" id="end-msg"></div>
+      <div class="end-rank-box" id="end-rank-box" style="display:none">
+        <div class="end-rank-num mono" id="end-rank-num"></div>
+        <div class="end-rank-info">
+          <div class="end-rank-lbl" id="end-rank-lbl"></div>
+          <div style="font-size:.65rem;color:var(--t3);margin-top:2px;">Final Rank</div>
+        </div>
+      </div>
+      <div id="save-status-end"></div>
+      <button class="btn btn-primary" onclick="showScreen('sc-lb')">View Live Leaderboard</button>
+      <button class="btn btn-ghost"   onclick="newGame()">Play Again</button>
+    </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════ LEADERBOARD ══════════════════════════════ -->
+<!-- ═══════════════════════ LEADERBOARD ═══════════════════════ -->
 <div class="screen" id="sc-lb">
   <div class="card">
-    <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--text-1);text-align:center;margin-bottom:6px">
-      <span class="live-dot"></span>Live Leaderboard
-    </div>
-    <div style="font-size:0.72rem;color:var(--text-3);text-align:center;margin-bottom:22px;letter-spacing:0.08em;text-transform:uppercase;">
-      Real-time · All teams visible from the moment they start
-    </div>
-    <div id="lb-list">
-      <div style="text-align:center;padding:28px 0;color:var(--text-2)">
-        <span class="spinner"></span>Connecting to Firestore...
-      </div>
-    </div>
-    <button class="btn-ghost" onclick="showScreen('sc-setup')" style="margin-top:16px">Back to Setup</button>
-    <div class="notice">
-      <span class="progress-dot"></span>= In Progress &nbsp;|&nbsp; Scores update after every answered question
-    </div>
+    <div class="lb-title"><span class="live-dot"></span>Live Leaderboard</div>
+    <div class="lb-sub">All teams · Updates after every question</div>
+    <div id="lb-list"><div style="text-align:center;padding:28px;color:var(--t2)"><span class="spin"></span>Connecting...</div></div>
+    <button class="btn btn-ghost" onclick="showScreen('sc-setup')" style="margin-top:14px">Back to Setup</button>
+    <p class="notice"><span class="prog-dot"></span>= In Progress &nbsp;·&nbsp; Highlighted row = your team</p>
   </div>
 </div>
 
 
-<!-- ══════════════════════════════ GAME LOGIC ══════════════════════════════ -->
 <script>
+/* ══════════════════════════════════════════════════════════
+   CONSTANTS
+══════════════════════════════════════════════════════════ */
 const DISCUSS_SECS = 180;
+const LS_KEY       = 'dtgame_v3';
+const CIRC         = 2 * Math.PI * 39; // r=39, ≈ 245
 
-/* ── Chapter data with pre-authored feedback (no API calls needed) ─────── */
+/* ══════════════════════════════════════════════════════════
+   CHAPTER DATA
+══════════════════════════════════════════════════════════ */
 const CHAPTERS = [
   {
-    title: "Wake-Up Call at RetailCo",
-    text: "You've just been promoted to manager at RetailCo, a 20-year chain of clothing stores. Sales have dropped 35% in two years. Customers prefer online competitors. Your board gives you 6 months to turn things around. What is your first strategic move?",
-    prompts: [
-      "Finance Head: What's the cost risk of doing nothing vs investing in change?",
-      "IT Manager: What digital infrastructure gaps do we currently have?",
-      "HR Lead: How do you think staff will react to major changes?",
-      "Customer Experience: What are customers complaining about right now?",
-      "Operations Head: Which internal processes are slowing us down most?"
+    title:"Wake-Up Call at RetailCo",
+    text:"You've just been promoted to manager at RetailCo, a 20-year chain of clothing stores. Sales have dropped 35% in two years. Customers prefer online competitors. Your board gives you 6 months to turn things around. What is your first strategic move?",
+    prompts:["Finance Head: What's the cost risk of doing nothing vs investing in change?","IT Manager: What digital infrastructure gaps do we currently have?","HR Lead: How do you think staff will react to major changes?","Customer Experience: What are customers complaining about right now?","Operations Head: Which internal processes are slowing us down most?"],
+    choices:[
+      {text:"Launch a flashy TV ad campaign to bring customers back to stores.",pts:0,type:"wrong",feedback:"A TV campaign misses the root cause — customers aren't avoiding RetailCo because they don't know it exists. They're choosing competitors for better digital experiences. Spending on ads without fixing the underlying model wastes capital you don't have. Takeaway: Diagnose before you prescribe."},
+      {text:"Conduct a full digital audit — understand where RetailCo stands vs competitors before acting.",pts:20,type:"correct",feedback:"Excellent. Before spending a single rupee, understanding your digital maturity helps you prioritise investments and avoid expensive mistakes. The audit reveals whether your biggest gap is e-commerce, data, logistics, or experience — and in what order to fix them. Takeaway: Map where you are before planning where to go."},
+      {text:"Immediately build a mobile app and website.",pts:10,type:"ok",feedback:"Building digital channels is necessary, but jumping to execution without a full picture is risky. You may build the wrong features for the wrong audience. A digital audit first ensures your app solves the right problems. Takeaway: Speed matters, but direction matters more."}
     ],
-    choices: [
-      { text: "Launch a flashy TV ad campaign to bring customers back to stores.", pts: 0, type: "wrong",
-        feedback: "A TV campaign addresses visibility but misses the root cause — customers aren't avoiding RetailCo because they don't know it exists. They're choosing competitors because those competitors offer better digital experiences. Spending on ads without fixing the underlying model wastes capital. Takeaway: Diagnose before you prescribe." },
-      { text: "Conduct a full digital audit — understand where RetailCo stands vs competitors before acting.", pts: 20, type: "correct",
-        feedback: "Excellent strategic thinking. Before spending a single rupee, understanding your current digital maturity helps you prioritise investments and avoid expensive mistakes. The audit will reveal whether your biggest gap is e-commerce, data, logistics, or customer experience. Takeaway: Always map where you are before you plan where you're going." },
-      { text: "Immediately build a mobile app and website.", pts: 10, type: "ok",
-        feedback: "Building digital channels is necessary, but jumping to execution without understanding the full landscape is risky. You may build the wrong features for the wrong audience. A digital audit first would ensure your app solves the right problems at the right priority. Takeaway: Speed matters, but direction matters more." }
-    ],
-    insight: "Digital Transformation starts with understanding — not just doing. A digital audit identifies gaps, priorities, and readiness before money is spent.",
-    curveball: "Your top competitor just launched same-day delivery. Customers are talking about it on social media. How does this change your urgency and sequence of actions?",
-    reflection: "Have you seen a company that reacted too slowly to digital change? What happened to them and how long did recovery take?"
+    insight:"Digital Transformation starts with understanding — not just doing. A digital audit identifies gaps, priorities, and readiness before money is spent.",
+    curveball:"Your top competitor just launched same-day delivery. Customers are talking about it on social media. How does this change your urgency and sequence of actions?",
+    reflection:"Have you seen a company that reacted too slowly to digital change? What happened to them and how long did recovery take?"
   },
   {
-    title: "The Data Desert",
-    text: "RetailCo has been running for 20 years with zero customer data. No purchase history, no profiles, no loyalty records. Your data consultant says: 'You're flying blind. Your competitors know what each customer wants before they do.' How do you build a data foundation?",
-    prompts: [
-      "Finance Head: What's the budget needed, and what ROI can we realistically expect from data collection?",
-      "IT Manager: What systems do we need to collect and store customer data securely?",
-      "HR Lead: Do our staff understand data privacy laws? Who needs training first?",
-      "Customer Experience: How do we get customers to willingly share their data with us?",
-      "Operations Head: How do we integrate data collection without disrupting daily store operations?"
+    title:"The Data Desert",
+    text:"RetailCo has run for 20 years with zero customer data. No purchase history, no profiles, no loyalty records. Your data consultant says: 'You're flying blind. Competitors know what each customer wants before they do.' How do you build a data foundation?",
+    prompts:["Finance Head: What's the budget needed, and what ROI can we realistically expect?","IT Manager: What systems do we need to collect and store data securely?","HR Lead: Do our staff understand data privacy laws? Who needs training?","Customer Experience: How do we get customers to willingly share their data?","Operations Head: How do we integrate data collection without disrupting store operations?"],
+    choices:[
+      {text:"Buy a third-party database of customer profiles from a data broker.",pts:0,type:"wrong",feedback:"Purchasing third-party data is legally risky, often inaccurate, and ethically questionable. Under India's DPDP Act, using data customers never consented to share can result in heavy penalties. You'd be building your future on someone else's ethics violation. Takeaway: Never build your data strategy on a foundation that can be taken away."},
+      {text:"Launch a loyalty programme — customers earn points, sharing data voluntarily.",pts:20,type:"correct",feedback:"Smart and sustainable. A loyalty programme creates genuine value exchange — customers share data willingly because they receive tangible benefits in return. This first-party data is accurate, legally sound, and proprietary. It also drives repeat visits simultaneously. Takeaway: Ethical data is the only data worth having."},
+      {text:"Ask cashiers to manually note down customer preferences during checkout.",pts:5,type:"ok",feedback:"Well-intentioned but fatally unscalable. Manual collection is slow, error-prone, and impossible to analyse at scale. It also burdens frontline staff during peak hours and cannot support AI or personalisation in the future. Takeaway: If a process can't scale, it can't be the foundation of transformation."}
     ],
-    choices: [
-      { text: "Buy a third-party database of customer profiles from a data broker.", pts: 0, type: "wrong",
-        feedback: "Purchasing third-party data is legally risky, often inaccurate, and ethically questionable. Under India's DPDP Act, using data customers never consented to share can result in heavy penalties and permanent brand damage. You'd be building your future on someone else's ethics violation. Takeaway: Never build your data strategy on a foundation that can be taken away." },
-      { text: "Launch a loyalty programme — customers earn points for purchases, sharing data voluntarily.", pts: 20, type: "correct",
-        feedback: "Smart and sustainable. A loyalty programme creates a genuine value exchange — customers share data willingly because they receive tangible benefits in return. This first-party data is accurate, legally sound, and proprietary to you. It also drives repeat visits simultaneously. Takeaway: Ethical data is the only data worth having." },
-      { text: "Ask cashiers to manually note down customer preferences during checkout.", pts: 5, type: "ok",
-        feedback: "Well-intentioned but fatally unscalable. Manual data collection is slow, error-prone, and impossible to analyse at scale. It places an unfair burden on frontline staff during peak hours, and cannot support AI or personalisation in the future. Takeaway: If a process can't scale, it can't be the foundation of transformation." }
-    ],
-    insight: "Good data strategy is built on trust. Customers willingly share data when they receive clear value. Ethical first-party collection also protects you from regulatory and reputational risk.",
-    curveball: "A new data privacy regulation just passed. Companies must now get explicit opt-in consent before storing personal data. How does each approach hold up legally?",
-    reflection: "Think of a brand that uses your data really well. How does it feel when they get it right — and when they get it wrong?"
+    insight:"Good data strategy is built on trust. Customers willingly share data when they receive clear value. Ethical first-party collection also protects you from regulatory and reputational risk.",
+    curveball:"A new data privacy regulation just passed. Companies must now get explicit opt-in consent before storing personal data. How does each approach hold up legally?",
+    reflection:"Think of a brand that uses your data really well. How does it feel when they get it right — and when they get it wrong?"
   },
   {
-    title: "The Automation Argument",
-    text: "RetailCo's warehouse team spends 5 hours daily manually counting stock and updating Excel sheets. Errors cause frequent stockouts — you're losing ₹12 lakhs per month in missed sales. Three team members oppose automation, fearing job losses. How do you proceed?",
-    prompts: [
-      "Finance Head: What's the full cost of automation vs the cost of current errors and lost sales?",
-      "IT Manager: What automation tools exist? What does a realistic implementation timeline look like?",
-      "HR Lead: How do you address the fear of job displacement among warehouse staff?",
-      "Customer Experience: How do stockouts today affect customer loyalty and repeat purchase rates?",
-      "Operations Head: What would a safe, phased rollout of automation look like in practice?"
+    title:"The Automation Argument",
+    text:"RetailCo's warehouse team spends 5 hours daily manually counting stock and updating Excel sheets. Errors cause frequent stockouts — you're losing ₹12 lakhs per month in missed sales. Three team members oppose automation, fearing job losses. How do you proceed?",
+    prompts:["Finance Head: What's the full cost of automation vs current errors and lost sales?","IT Manager: What automation tools exist? What's a realistic implementation timeline?","HR Lead: How do you address the fear of job displacement among warehouse staff?","Customer Experience: How do stockouts affect customer loyalty and repeat purchases?","Operations Head: What would a phased rollout of automation look like in practice?"],
+    choices:[
+      {text:"Automate everything immediately — efficiency comes first.",pts:5,type:"ok",feedback:"Fast but risky. Immediate full automation without managing the human side generates resentment that undermines the technology's effectiveness. Efficiency gains on paper can be erased by low morale and staff who work around the system. Takeaway: Technology without a people strategy is incomplete."},
+      {text:"Do nothing — the team's fears are valid and morale matters.",pts:0,type:"wrong",feedback:"Inaction creates a false choice. You can address staff fears AND implement automation — these are not mutually exclusive. Losing ₹12 lakhs monthly is not sustainable, and delaying makes the eventual change harder and more disruptive. Takeaway: Compassion and progress are not opposites."},
+      {text:"Automate stock counting, then retrain warehouse staff for data oversight and exception handling.",pts:20,type:"correct",feedback:"Gold standard. You reduce errors and costs while proving transformation is about empowering people, not replacing them. Reskilled staff bring operational context that pure automation cannot replicate — and become your strongest transformation advocates. Takeaway: The best automation strategies invest in people simultaneously."}
     ],
-    choices: [
-      { text: "Automate everything immediately — efficiency comes first.", pts: 5, type: "ok",
-        feedback: "Fast but risky. Immediate full automation without managing the human side generates resentment that undermines the technology's effectiveness over time. Efficiency gains on paper can be erased by low morale and staff who work around the system. Takeaway: Technology without a people strategy is incomplete." },
-      { text: "Do nothing — the team's fears are valid and morale matters.", pts: 0, type: "wrong",
-        feedback: "Inaction creates a false choice. You can address staff fears AND implement automation — these are not mutually exclusive. Losing ₹12 lakhs monthly is not sustainable, and delaying will only make the eventual change harder and more disruptive. Takeaway: Compassion and progress are not opposites." },
-      { text: "Automate stock counting, then retrain warehouse staff for data oversight and exception handling roles.", pts: 20, type: "correct",
-        feedback: "This is the gold standard response. You reduce errors and costs while proving that transformation is about empowering people, not replacing them. Reskilled staff bring operational context that pure automation cannot replicate and become your strongest transformation advocates. Takeaway: The best automation strategies invest in people simultaneously." }
-    ],
-    insight: "Automation doesn't always eliminate jobs — it transforms them. The strongest DT strategies automate repetitive tasks while reskilling employees for higher-value roles.",
-    curveball: "During rollout, the automated system crashes for 48 hours during peak season. How do you manage the crisis without destroying confidence in the transformation?",
-    reflection: "Can you name a job role that has been transformed — not eliminated — by technology in the last 10 years? What changed?"
+    insight:"Automation doesn't always eliminate jobs — it transforms them. The strongest DT strategies automate repetitive tasks while reskilling employees for higher-value roles.",
+    curveball:"During rollout, the automated system crashes for 48 hours during peak season. How do you manage the crisis without destroying confidence in the transformation?",
+    reflection:"Can you name a job role that has been transformed — not eliminated — by technology in the last 10 years? What changed?"
   },
   {
-    title: "Cloud or Ground?",
-    text: "RetailCo's IT runs on 15-year-old on-premise servers that crash monthly. Your IT manager says moving to cloud will cost ₹40 lakhs upfront but save ₹15 lakhs yearly. The Finance Head says the upfront cost is too high right now. The board wants a decision today.",
-    prompts: [
-      "Finance Head: How do you evaluate upfront investment vs long-term savings? What's the break-even point?",
-      "IT Manager: What's the risk of staying on old servers vs the risk of migration itself?",
-      "HR Lead: What retraining will IT staff need to operate cloud infrastructure effectively?",
-      "Customer Experience: How do monthly server crashes directly affect the customer experience today?",
-      "Operations Head: What's the minimum viable first phase of cloud migration we could start with?"
+    title:"Cloud or Ground?",
+    text:"RetailCo's IT runs on 15-year-old on-premise servers that crash monthly. Your IT manager says moving to cloud will cost ₹40 lakhs upfront but save ₹15 lakhs yearly. The Finance Head says the upfront cost is too high right now. The board wants a decision today.",
+    prompts:["Finance Head: How do you evaluate upfront investment vs long-term savings? What's the break-even?","IT Manager: What's the risk of staying on old servers vs the risk of migration itself?","HR Lead: What retraining will IT staff need to operate cloud infrastructure?","Customer Experience: How do monthly server crashes affect the customer experience today?","Operations Head: What's the minimum viable first phase of cloud migration we could start with?"],
+    choices:[
+      {text:"Delay the decision — the upfront cost is too high right now.",pts:0,type:"wrong",feedback:"Delaying is itself a decision — one that costs ₹15 lakhs in potential savings for every year you wait, while aging servers risk catastrophic failure. At ₹15L annual savings, the ₹40L investment breaks even in under 3 years. The Finance Head is optimising for the wrong time horizon. Takeaway: Inaction always has a price — calculate it."},
+      {text:"Migrate everything to cloud immediately — rip off the bandaid.",pts:8,type:"ok",feedback:"Courageous but risky. Full immediate migration with 15-year-old legacy systems often creates data loss, integration failures, and operational chaos. Most enterprises that rush full migrations experience disruption that erodes the financial case. Takeaway: Even the right direction can be taken too fast."},
+      {text:"Start with a hybrid approach — move critical systems first, phase the rest over 12 months.",pts:20,type:"correct",feedback:"Strategically sound. A hybrid approach lets you move the highest-risk systems first, demonstrate ROI to the Finance Head, build IT team competence gradually, and spread the financial burden. This is how most successful enterprise cloud migrations are executed. Takeaway: Phased transformation manages risk without sacrificing progress."}
     ],
-    choices: [
-      { text: "Delay the decision — the upfront cost is too high right now.", pts: 0, type: "wrong",
-        feedback: "Delaying a decision is itself a decision — one that costs ₹15 lakhs in potential savings for every year you wait, while aging servers continue to risk catastrophic failure. At ₹15 lakh annual savings, the ₹40 lakh investment breaks even in under 3 years. Takeaway: Inaction always has a price — always calculate it." },
-      { text: "Migrate everything to cloud immediately — rip off the bandaid.", pts: 8, type: "ok",
-        feedback: "Courageous but risky. A full immediate migration with 15-year-old legacy systems often creates data loss, integration failures, and operational chaos during the transition window. Most enterprises that rush full migrations experience disruption that erodes the financial case. Takeaway: Even the right direction can be taken too fast." },
-      { text: "Start with a hybrid approach — move critical systems first, phase the rest over 12 months.", pts: 20, type: "correct",
-        feedback: "Strategically sound. A hybrid approach lets you move the highest-risk systems first, demonstrate ROI to the Finance Head, build IT team competence gradually, and spread the financial burden. This is how most successful enterprise cloud migrations are executed. Takeaway: Phased transformation manages risk without sacrificing progress." }
-    ],
-    insight: "Cloud migration doesn't have to be all-or-nothing. A phased, hybrid approach manages risk while building momentum and confidence across the organisation.",
-    curveball: "Your cloud vendor increases pricing by 20% after you've signed and migrated. What contractual clauses should your team have negotiated upfront?",
-    reflection: "Why do many companies delay cloud migration even when they know it's better? What psychological and structural factors hold organisations back?"
+    insight:"Cloud migration doesn't have to be all-or-nothing. A phased, hybrid approach manages risk while building momentum and confidence across the organisation.",
+    curveball:"Your cloud vendor increases pricing by 20% after you've signed and migrated. What contractual clauses should your team have negotiated upfront?",
+    reflection:"Why do many companies delay cloud migration even when they know it's better? What psychological and structural factors hold organisations back?"
   },
   {
-    title: "The AI Opportunity",
-    text: "With 8 months of customer data collected, your data team says an AI model can predict which products will sell best next season with 85% accuracy. Procurement currently relies on gut feel — and has a 40% overstock problem. Leadership is nervous about trusting a machine.",
-    prompts: [
-      "Finance Head: What's the cost of 40% overstock each season vs the cost of implementing AI-based predictions?",
-      "IT Manager: How do we properly validate the AI model's accuracy before we rely on it for real decisions?",
-      "HR Lead: How do you help the procurement team see AI as a tool that helps them — not a threat to their roles?",
-      "Customer Experience: How would better prediction directly improve product availability for customers?",
-      "Operations Head: How do we integrate AI recommendations into the existing procurement approval workflow?"
+    title:"The AI Opportunity",
+    text:"With 8 months of customer data collected, your data team says an AI model can predict which products will sell best next season with 85% accuracy. Procurement currently relies on gut feel — and has a 40% overstock problem. Leadership is nervous about trusting a machine.",
+    prompts:["Finance Head: What's the cost of 40% overstock vs cost of implementing AI predictions?","IT Manager: How do we validate the AI model's accuracy before relying on it for real decisions?","HR Lead: How do you help procurement see AI as a tool that helps them — not a threat?","Customer Experience: How would better prediction directly improve product availability?","Operations Head: How do we integrate AI recommendations into the procurement workflow?"],
+    choices:[
+      {text:"Let AI make all procurement decisions automatically — remove human bias entirely.",pts:8,type:"ok",feedback:"Removing human oversight from high-stakes financial decisions is dangerous. AI models have blind spots, data errors, and no understanding of external context — disruptions, supplier failures, sudden trend reversals. Full automation also removes clear accountability when things go wrong. Takeaway: Never remove the human from high-consequence decisions."},
+      {text:"Ignore AI — gut feel has worked for 20 years.",pts:0,type:"wrong",feedback:"Dismissing AI because gut feel worked historically is survivorship bias — you remember the good calls, not the 40% overstock losses. Competitors are already using predictive analytics to outmanoeuvre you season after season. Gut feel in a data-rich environment is no longer competitive. Takeaway: Past success is not a strategy for future markets."},
+      {text:"Use AI recommendations as primary input, but procurement team reviews and approves all final orders.",pts:20,type:"correct",feedback:"Perfect balance. AI provides pattern recognition across thousands of data points; humans provide context, judgment, and accountability. The hybrid model helps your procurement team build trust in AI incrementally rather than feeling replaced overnight. Takeaway: The best decisions combine machine intelligence with human wisdom."}
     ],
-    choices: [
-      { text: "Let AI make all procurement decisions automatically — remove human bias entirely.", pts: 8, type: "ok",
-        feedback: "Removing human oversight from high-stakes financial decisions is dangerous. AI models have blind spots, data errors, and no understanding of external context — geopolitical disruptions, supplier failures, sudden trend reversals. Full automation also removes clear accountability when things go wrong. Takeaway: Never remove the human from high-consequence decisions." },
-      { text: "Ignore AI — gut feel has worked for 20 years.", pts: 0, type: "wrong",
-        feedback: "Dismissing AI because gut feel worked historically is survivorship bias — you remember the good calls, not the 40% overstock losses. Your competitors are already using predictive analytics to outmanoeuvre you. Gut feel in a data-rich environment is no longer a competitive strategy. Takeaway: Past success is not a strategy for future markets." },
-      { text: "Use AI recommendations as primary input, but the procurement team reviews and approves all final orders.", pts: 20, type: "correct",
-        feedback: "This is the right balance. AI provides pattern recognition across thousands of data points simultaneously; humans provide context, judgment, and accountability. The hybrid model also helps your procurement team build trust in AI incrementally rather than feeling replaced overnight. Takeaway: The best decisions combine machine intelligence with human wisdom." }
-    ],
-    insight: "AI augments human intelligence — it doesn't replace judgment. The strongest AI implementations pair machine pattern recognition with human context, ethics, and clear accountability.",
-    curveball: "The AI model makes a recommendation based on corrupted input data. ₹80 lakhs of wrong products are ordered before anyone notices. Who is accountable — the AI, the data team, or the manager who approved?",
-    reflection: "Where in your industry do you think AI will have its largest operational impact in the next 5 years? Which jobs will be transformed?"
+    insight:"AI augments human intelligence — it doesn't replace judgment. The strongest AI implementations pair machine pattern recognition with human context, ethics, and clear accountability.",
+    curveball:"The AI model makes a recommendation based on corrupted input data. ₹80 lakhs of wrong products are ordered before anyone notices. Who is accountable — the AI, the data team, or the manager who approved?",
+    reflection:"Where in your industry do you think AI will have its largest operational impact in the next 5 years? Which jobs will be transformed?"
   },
   {
-    title: "The Cyber Attack",
-    text: "RetailCo's new digital systems are live. At 2am on a Monday, hackers breach your customer database — 50,000 records including payment data are exposed. By 6am it's on the news. Your crisis team is assembled. What do you do in the first 24 hours?",
-    prompts: [
-      "Finance Head: What is the full financial exposure — regulatory fines, lawsuits, and lost business?",
-      "IT Manager: What are the immediate steps to contain the breach and harden systems right now?",
-      "HR Lead: How do you support staff who are panicking and fielding hundreds of angry customer calls?",
-      "Customer Experience: How do you communicate honestly with affected customers without triggering a panic?",
-      "Operations Head: Which business operations must continue vs which must be paused during the active crisis?"
+    title:"The Cyber Attack",
+    text:"RetailCo's new digital systems are live. At 2am on a Monday, hackers breach your customer database — 50,000 records including payment data are exposed. By 6am it's on the news. Your crisis team is assembled. What do you do in the first 24 hours?",
+    prompts:["Finance Head: What is the full financial exposure — fines, lawsuits, and lost business?","IT Manager: What are the immediate steps to contain the breach and harden systems?","HR Lead: How do you support staff who are panicking and fielding angry customer calls?","Customer Experience: How do you communicate honestly with customers without triggering panic?","Operations Head: Which operations must continue vs which must be paused during the crisis?"],
+    choices:[
+      {text:"Say nothing publicly until you have the full picture — avoid unnecessary panic.",pts:0,type:"wrong",feedback:"Silence during an active breach is catastrophic. Every hour of delay increases legal liability and allows more customers to be harmed. When the full story emerges — and it always does — your silence becomes the headline, maximising reputational and regulatory damage. Takeaway: In a crisis, the cover-up is always worse than the original incident."},
+      {text:"Immediately notify affected customers, regulators, and the public. Offer free credit monitoring.",pts:20,type:"correct",feedback:"The only ethically and legally defensible response. Rapid transparent notification protects customers from further harm, limits legal exposure, and — counter-intuitively — builds long-term trust. Companies that respond with speed, honesty, and practical support consistently recover their reputation faster. Takeaway: Trust is rebuilt through transparency, not silence."},
+      {text:"Quietly fix the breach and only notify customers if legally required.",pts:3,type:"wrong",feedback:"A quiet fix without proactive notification violates data protection law in most jurisdictions, including India's DPDP framework. When regulators investigate — and they will — this results in maximum penalties and the most severe reputational damage possible. Takeaway: There is no quiet data breach."}
     ],
-    choices: [
-      { text: "Say nothing publicly until you have the full picture — avoid unnecessary panic.", pts: 0, type: "wrong",
-        feedback: "Silence during an active breach is a catastrophic error. Every hour of delay increases legal liability and allows more customers to be harmed. When the full story emerges — and it always does — your silence becomes the headline, maximising reputational and regulatory damage. Takeaway: In a crisis, the cover-up is always worse than the original incident." },
-      { text: "Immediately notify affected customers, regulators, and the public. Offer free credit monitoring.", pts: 20, type: "correct",
-        feedback: "This is the only ethically and legally defensible response. Rapid transparent notification protects customers from further harm, limits legal exposure, and builds long-term trust. Companies that respond with speed, honesty, and practical support consistently recover their reputation faster. Takeaway: Trust is rebuilt through transparency, not silence." },
-      { text: "Quietly fix the breach and only notify customers if legally required.", pts: 3, type: "wrong",
-        feedback: "A quiet fix without proactive notification violates data protection law in most jurisdictions, including India's DPDP framework. When regulators investigate — and they will — this approach results in maximum penalties and the most severe reputational damage possible. Takeaway: There is no quiet data breach." }
-    ],
-    insight: "Cybersecurity is a critical pillar of digital transformation. Transparency during a breach builds long-term trust. Concealment creates far greater legal, financial, and reputational damage.",
-    curveball: "A regulator calls — you had a mandatory 72-hour window to report this breach under law, and you missed it. What are the legal consequences and what is your immediate response?",
-    reflection: "Has a brand ever won or lost your personal trust based on how they handled a public crisis? What specifically did they do right or wrong?"
+    insight:"Cybersecurity is a critical pillar of digital transformation. Transparency during a breach builds long-term trust. Concealment creates far greater legal, financial, and reputational damage.",
+    curveball:"A regulator calls — you had a mandatory 72-hour window to report this breach under law, and you missed it. What are the legal consequences and what is your immediate response?",
+    reflection:"Has a brand ever won or lost your personal trust based on how they handled a public crisis? What specifically did they do right or wrong?"
   },
   {
-    title: "Culture Clash",
-    text: "The technology is in place, but 45% of RetailCo staff are resistant. Floor managers say 'we've done it this way for 20 years.' The digital dashboard sits unused. Your transformation is stalling — not because of tech, but because of people. What's your move?",
-    prompts: [
-      "Finance Head: What is the real cost of a failed transformation after all the capital already invested?",
-      "IT Manager: What specific usability problems might be making the tools genuinely difficult to adopt?",
-      "HR Lead: How do you design a change management programme that wins hearts as well as minds?",
-      "Customer Experience: How is staff resistance visibly showing up in the customer experience on the floor?",
-      "Operations Head: How do you redesign daily workflows so digital tools become the path of least resistance?"
+    title:"Culture Clash",
+    text:"The technology is in place, but 45% of RetailCo staff are resistant. Floor managers say 'we've done it this way for 20 years.' The digital dashboard sits unused. Your transformation is stalling — not because of tech, but because of people. What's your move?",
+    prompts:["Finance Head: What is the real cost of a failed transformation after all the capital invested?","IT Manager: What specific usability problems might be making the tools genuinely hard to adopt?","HR Lead: How do you design a change management programme that wins hearts as well as minds?","Customer Experience: How is staff resistance visibly showing up in the customer experience?","Operations Head: How do you redesign workflows so digital tools become the path of least resistance?"],
+    choices:[
+      {text:"Make digital tool usage mandatory — track compliance and penalise non-use.",pts:5,type:"ok",feedback:"Mandating adoption creates short-term compliance but deeper resentment. Staff will use the tool minimally to avoid penalties, not creatively to generate results. You get box-ticking, not transformation. The underlying resistance resurfaces whenever enforcement relaxes. Takeaway: Compliance is not the same as transformation."},
+      {text:"Accept it — you can't force culture change.",pts:0,type:"wrong",feedback:"Passive acceptance is not compassion — it is abdication. Your organisation has invested heavily in technology now sitting unused. Culture must be actively led; it does not change on its own. Acceptance leads to transformation failure, wasted capital, and competitive decline. Takeaway: Change leadership is not optional — it is the job."},
+      {text:"Identify internal champions, run peer-led training, share quick wins, and celebrate early adopters.",pts:20,type:"correct",feedback:"Evidence-based change management. Internal champions carry peer credibility that management cannot. Quick visible wins create momentum. Public recognition makes adoption aspirational rather than obligatory. This approach builds durable cultural change rather than enforced compliance. Takeaway: Culture changes person by person, story by story."}
     ],
-    choices: [
-      { text: "Make digital tool usage mandatory — track compliance and penalise non-use.", pts: 5, type: "ok",
-        feedback: "Mandating adoption creates short-term compliance but deeper resentment. Staff will use the tool minimally to avoid penalties, not creatively to generate results. You get box-ticking, not transformation. The underlying resistance resurfaces whenever enforcement relaxes. Takeaway: Compliance is not the same as transformation." },
-      { text: "Accept it — you can't force culture change.", pts: 0, type: "wrong",
-        feedback: "Passive acceptance is not compassion — it is abdication of leadership. Your organisation has invested heavily in technology that now sits unused. Culture must be actively led; it does not change on its own. Acceptance leads to transformation failure, wasted capital, and competitive decline. Takeaway: Change leadership is not optional — it is the job." },
-      { text: "Identify internal champions, run peer-led training, share quick wins, and publicly celebrate early adopters.", pts: 20, type: "correct",
-        feedback: "This is evidence-based change management. Internal champions carry peer credibility that management cannot. Quick visible wins create momentum. Public recognition makes digital adoption aspirational rather than obligatory. This approach builds durable cultural change rather than enforced compliance. Takeaway: Culture changes person by person, story by story." }
-    ],
-    insight: "Culture is the hardest part of digital transformation. Research shows 70% of DT programmes fail because of people and culture — not technology. Change must be led from within.",
-    curveball: "The floor manager who was your loudest resister just became your biggest champion after a peer training session. How do you leverage this moment to accelerate adoption across the organisation?",
-    reflection: "Think about a time you personally resisted a new system or process at work or college. What eventually made you adopt it? What was the turning point?"
+    insight:"Culture is the hardest part of digital transformation. Research shows 70% of DT programmes fail because of people and culture — not technology. Change must be led from within.",
+    curveball:"The floor manager who was your loudest resister just became your biggest champion after a peer training session. How do you leverage this moment to accelerate adoption?",
+    reflection:"Think about a time you personally resisted a new system or process. What eventually made you adopt it? What was the turning point?"
   },
   {
-    title: "The New RetailCo",
-    text: "It's been 12 months. RetailCo has digital inventory, a loyalty app with 80,000 users, AI-assisted procurement, and cloud infrastructure. Sales are up 28%. The board asks: 'How do we make sure we stay ahead and don't fall behind again in 5 years?' What's your answer?",
-    prompts: [
-      "Finance Head: How do you build a continuous DT investment model into the annual budget going forward?",
-      "IT Manager: How do you keep technology current without subjecting the organisation to constant disruption?",
-      "HR Lead: How do you build a culture where learning and adaptation are ongoing — not event-driven?",
-      "Customer Experience: How do you keep listening to customers as their expectations continue to evolve?",
-      "Operations Head: What governance processes ensure continuous operational review and improvement?"
+    title:"The New RetailCo",
+    text:"It's been 12 months. RetailCo has digital inventory, a loyalty app with 80,000 users, AI-assisted procurement, and cloud infrastructure. Sales are up 28%. The board asks: 'How do we make sure we stay ahead and don't fall behind again in 5 years?' What's your answer?",
+    prompts:["Finance Head: How do you build a continuous DT investment model into the annual budget?","IT Manager: How do you keep technology current without constant disruption?","HR Lead: How do you build a culture where learning and adaptation are ongoing — not event-driven?","Customer Experience: How do you keep listening to customers as their expectations evolve?","Operations Head: What governance processes ensure continuous operational review and improvement?"],
+    choices:[
+      {text:"We've completed the transformation — focus on stability and cost control now.",pts:0,type:"wrong",feedback:"The instinct to stabilise after a transformation is understandable — and dangerous. The digital landscape continues to shift. Competitors who keep investing will overtake you within 2-3 years. The goal was never to complete a project; it was to become a fundamentally more adaptive company. Takeaway: There is no finish line in digital transformation."},
+      {text:"Set up a permanent DT team, continuous learning budget, and quarterly innovation reviews.",pts:20,type:"correct",feedback:"Strategic maturity. Building permanent internal capability — dedicated DT leadership, continuous learning budgets, quarterly innovation reviews — institutionalises transformation as a way of operating rather than a one-time event. You stop reacting to disruption and start anticipating it. Takeaway: Make adaptability a core competency, not a crisis response."},
+      {text:"Hire a fresh batch of external tech consultants every 2 years to keep us updated.",pts:8,type:"ok",feedback:"External consultants bring perspective but no institutional memory and no long-term accountability. Relying on them cyclically creates knowledge dependency, recurring costs, and an organisation that never builds genuine internal digital capability. Takeaway: Digital capability must be grown inside — not rented from outside indefinitely."}
     ],
-    choices: [
-      { text: "We've completed the transformation — focus on stability and cost control now.", pts: 0, type: "wrong",
-        feedback: "After a transformation, the instinct to stabilise is understandable — and dangerous. The digital landscape continues to shift. Competitors who keep investing will overtake you within 2 to 3 years. The goal was never to complete a project; it was to become a fundamentally more adaptive company. Takeaway: There is no finish line in digital transformation." },
-      { text: "Set up a permanent DT team, continuous learning budget, and quarterly innovation reviews.", pts: 20, type: "correct",
-        feedback: "This is strategic maturity. Building a permanent internal capability — dedicated DT leadership, continuous learning budgets, quarterly innovation reviews — institutionalises transformation as a way of operating rather than a one-time event. You stop reacting to disruption and start anticipating it. Takeaway: Make adaptability a core competency, not a crisis response." },
-      { text: "Hire a fresh batch of external tech consultants every 2 years to keep us updated.", pts: 8, type: "ok",
-        feedback: "External consultants bring perspective but no institutional memory and no long-term accountability. Relying on them cyclically creates knowledge dependency, recurring costs, and an organisation that never builds genuine internal digital capability. Takeaway: Digital capability must be grown inside the organisation — not rented indefinitely." }
-    ],
-    insight: "Digital Transformation is not a project with an end date — it is a continuous operating philosophy. The companies that stay ahead build adaptability into their culture and structures permanently.",
-    curveball: "A funded startup just launched an AI-powered personal stylist that completely changes how people shop for clothes. What is RetailCo's 90-day response plan and who owns it?",
-    reflection: "What is one thing you will personally do differently — at work or in how you approach problems — because of what you experienced in this game today?"
+    insight:"Digital Transformation is not a project with an end date — it is a continuous operating philosophy. The companies that stay ahead build adaptability into their culture and structures permanently.",
+    curveball:"A funded startup just launched an AI-powered personal stylist that completely changes how people shop for clothes. What is RetailCo's 90-day response plan and who owns it?",
+    reflection:"What is one thing you will personally do differently — at work or in how you approach problems — because of what you experienced in this game today?"
   }
 ];
 
-/* ── State ─────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════ */
 let state = {
-  team: '', score: 0, step: 0,
-  timerInt: null, timerSecs: DISCUSS_SECS, choicesUnlocked: false,
-  docId: null   // Firestore document ID, set once on registration
+  team:'', score:0, step:0, docId:null,
+  timerInt:null, timerSecs:DISCUSS_SECS, choicesUnlocked:false
 };
-let lbUnsubscribe = null;
+let lbUnsub   = null;  // leaderboard screen listener
+let rankUnsub = null;  // live rank during game
+let myRank    = null;
+let totalTeams = 0;
 
-/* ── Screen Management ──────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   LOCAL STORAGE — SESSION PERSISTENCE
+══════════════════════════════════════════════════════════ */
+function ls_save() {
+  if (!state.team) return;
+  localStorage.setItem(LS_KEY, JSON.stringify({
+    team:     state.team,
+    score:    state.score,
+    nextStep: state.step + 1,   // chapter to load on resume
+    docId:    state.docId,
+    phase:    'playing',
+    at:       Date.now()
+  }));
+}
+
+function ls_setDocId(id) {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+    if (d.phase === 'playing') { d.docId = id; localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+  } catch(e) {}
+}
+
+function ls_end() {
+  localStorage.setItem(LS_KEY, JSON.stringify({ phase:'ended' }));
+}
+
+function ls_clear() { localStorage.removeItem(LS_KEY); }
+
+function ls_get() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY)||'null');
+    if (!d || d.phase !== 'playing') return null;
+    if (Date.now() - d.at > 86400000) { ls_clear(); return null; } // expire after 24h
+    return d;
+  } catch(e) { ls_clear(); return null; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   PAGE LOAD — CHECK FOR SAVED GAME
+══════════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = ls_get();
+  if (saved && saved.nextStep < CHAPTERS.length) {
+    document.getElementById('resume-card').style.display = 'block';
+    document.getElementById('normal-setup').style.display = 'none';
+    document.getElementById('resume-name').textContent = saved.team;
+    document.getElementById('resume-meta').textContent =
+      `Chapter ${saved.nextStep + 1} of ${CHAPTERS.length}  ·  ${saved.score} pts saved`;
+  }
+});
+
+/* ══════════════════════════════════════════════════════════
+   SCREEN
+══════════════════════════════════════════════════════════ */
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'sc-lb') renderLB();
 }
 
-/* ── Game Start ─────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   START / RESUME / DISCARD
+══════════════════════════════════════════════════════════ */
 function startGame() {
   const n = document.getElementById('team-input').value.trim();
   if (!n) { alert('Please enter a team name before starting.'); return; }
-
-  state = { team: n, score: 0, step: 0, timerInt: null, timerSecs: DISCUSS_SECS, choicesUnlocked: false, docId: null };
+  state = { team:n, score:0, step:0, docId:null, timerInt:null, timerSecs:DISCUSS_SECS, choicesUnlocked:false };
+  // Initial localStorage save so reload during Ch1 discussion works
+  localStorage.setItem(LS_KEY, JSON.stringify({ team:n, score:0, nextStep:0, docId:null, phase:'playing', at:Date.now() }));
   document.getElementById('team-label').textContent = n;
   showScreen('sc-game');
+  updateMeter();
   renderChapter();
-
-  // Register in Firestore immediately — team appears on leaderboard at once
-  registerTeam();
+  startRankTracking();
+  registerTeam(); // async, fire-and-forget
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   FIREBASE FUNCTIONS
-   Three separate async functions, each self-contained with full error logs.
-   registerTeam  → called once on game start  (creates doc, score = 0)
-   pushScore     → called after every question (updates score live)
-   finalSave     → called at game end          (adds badge, marks completed)
-   ══════════════════════════════════════════════════════════════════════════ */
+function resumeGame() {
+  const saved = ls_get();
+  if (!saved || saved.nextStep >= CHAPTERS.length) { discardAndNew(); return; }
+  state = { team:saved.team, score:saved.score, step:saved.nextStep, docId:saved.docId,
+            timerInt:null, timerSecs:DISCUSS_SECS, choicesUnlocked:false };
+  document.getElementById('team-label').textContent = state.team;
+  showScreen('sc-game');
+  updateMeter();
+  renderChapter();
+  startRankTracking();
+  pushScore(); // re-sync to Firestore on resume
+  console.log("✅ Resumed:", state.team, "Ch:", state.step + 1, "Score:", state.score);
+}
 
+function discardAndNew() {
+  ls_clear();
+  document.getElementById('resume-card').style.display  = 'none';
+  document.getElementById('normal-setup').style.display = 'block';
+}
+
+function newGame() {
+  clearInterval(state.timerInt);
+  stopRankTracking();
+  if (lbUnsub) { lbUnsub(); lbUnsub = null; }
+  state = { team:'', score:0, step:0, docId:null, timerInt:null, timerSecs:DISCUSS_SECS, choicesUnlocked:false };
+  myRank=null; totalTeams=0;
+  ls_clear();
+  document.getElementById('team-input').value = '';
+  document.getElementById('resume-card').style.display  = 'none';
+  document.getElementById('normal-setup').style.display = 'block';
+  showScreen('sc-setup');
+}
+
+/* ══════════════════════════════════════════════════════════
+   FIREBASE — REGISTER TEAM (on game start, score = 0)
+══════════════════════════════════════════════════════════ */
 async function registerTeam() {
-  if (!window.db) {
-    console.error("❌ window.db is null — Firebase did not initialise. Check the <head> script.");
-    return;
-  }
-  console.log("🔄 registerTeam: registering", state.team);
+  if (!window.db) { console.warn("Firebase N/A"); return; }
   const ts = firebase.firestore.FieldValue.serverTimestamp();
   try {
-    // Check for existing document with same name (handles Play Again)
-    const existing = await window.db.collection("leaderboard")
-                                    .where("name", "==", state.team)
-                                    .get();
-    if (!existing.empty) {
-      state.docId = existing.docs[0].id;
-      await window.db.collection("leaderboard").doc(state.docId).update({
-        score: 0, step: 0, badge: "In Progress", completed: false, timestamp: ts
-      });
-      console.log("✅ Existing team reset. docId:", state.docId);
+    const ex = await window.db.collection("leaderboard").where("name","==",state.team).get();
+    if (!ex.empty) {
+      state.docId = ex.docs[0].id;
+      await window.db.collection("leaderboard").doc(state.docId).update(
+        { score:0, step:0, badge:"In Progress", completed:false, timestamp:ts });
     } else {
-      const ref = await window.db.collection("leaderboard").add({
-        name: state.team, score: 0, step: 0,
-        badge: "In Progress", completed: false, timestamp: ts
-      });
+      const ref = await window.db.collection("leaderboard").add(
+        { name:state.team, score:0, step:0, badge:"In Progress", completed:false, timestamp:ts });
       state.docId = ref.id;
-      console.log("✅ New team created. docId:", state.docId);
     }
-  } catch (e) {
-    console.error("❌ registerTeam FAILED:", e.code, e.message);
-    if (e.code === "permission-denied") {
-      console.error("🔒 FIRESTORE RULES are blocking this write.");
-      console.error("   → Go to Firebase Console → Firestore Database → Rules");
-      console.error("   → Set: allow read, write: if true; for /leaderboard/{doc}");
-      console.error("   → Click Publish. Then refresh this page.");
-    }
+    ls_setDocId(state.docId);
+    console.log("✅ Registered:", state.team, state.docId);
+  } catch(e) {
+    console.error("❌ registerTeam:", e.code, e.message);
+    if (e.code==='permission-denied') console.error("🔒 Update Firestore Rules — allow read, write: if true for /leaderboard/{doc}");
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   FIREBASE — PUSH SCORE after every question
+══════════════════════════════════════════════════════════ */
 async function pushScore() {
   if (!window.db) return;
   const ts = firebase.firestore.FieldValue.serverTimestamp();
   try {
     if (state.docId) {
-      // Fast path — we have the doc reference
-      await window.db.collection("leaderboard").doc(state.docId).update({
-        score: state.score, step: state.step, timestamp: ts
-      });
-      console.log("✅ pushScore:", state.score, "pts | step:", state.step);
+      await window.db.collection("leaderboard").doc(state.docId).update({ score:state.score, step:state.step, timestamp:ts });
+      console.log("✅ Score:", state.score, "step:", state.step);
     } else {
-      // Fallback — registerTeam may still be in-flight, query by name
-      console.warn("⚠️ pushScore: docId not yet set, querying by name...");
-      const snap = await window.db.collection("leaderboard")
-                                  .where("name", "==", state.team).get();
+      const snap = await window.db.collection("leaderboard").where("name","==",state.team).get();
       if (!snap.empty) {
         state.docId = snap.docs[0].id;
-        await window.db.collection("leaderboard").doc(state.docId).update({
-          score: state.score, step: state.step, timestamp: ts
-        });
-        console.log("✅ pushScore (fallback):", state.score, "pts");
+        ls_setDocId(state.docId);
+        await window.db.collection("leaderboard").doc(state.docId).update({ score:state.score, step:state.step, timestamp:ts });
+        console.log("✅ Score (fallback):", state.score);
       } else {
-        // Document doesn't exist at all — create it now
-        const ref = await window.db.collection("leaderboard").add({
-          name: state.team, score: state.score, step: state.step,
-          badge: "In Progress", completed: false, timestamp: ts
-        });
+        const ref = await window.db.collection("leaderboard").add(
+          { name:state.team, score:state.score, step:state.step, badge:"In Progress", completed:false, timestamp:ts });
         state.docId = ref.id;
-        console.log("✅ pushScore (created new doc):", state.docId);
+        ls_setDocId(state.docId);
+        console.log("✅ Score (new doc):", state.score);
       }
     }
-  } catch (e) {
-    console.error("❌ pushScore FAILED:", e.code, e.message);
-  }
+  } catch(e) { console.error("❌ pushScore:", e.code, e.message); }
 }
 
+/* ══════════════════════════════════════════════════════════
+   FIREBASE — FINAL SAVE
+══════════════════════════════════════════════════════════ */
 async function finalSave(badge) {
-  const statusEl = document.getElementById('save-status-end');
-  statusEl.innerHTML = '<div class="save-status"><span class="spinner"></span>Saving final score...</div>';
-
-  if (!window.db) {
-    statusEl.innerHTML = '<div class="save-status save-err">Firebase unavailable — score not saved.</div>';
-    return;
-  }
-  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  const el = document.getElementById('save-status-end');
+  el.innerHTML = '<span class="spin"></span><span class="muted" style="font-size:.76rem">Saving score...</span>';
+  if (!window.db) { el.innerHTML='<span class="err-txt" style="font-size:.76rem">Firebase unavailable.</span>'; return; }
+  const ts      = firebase.firestore.FieldValue.serverTimestamp();
+  const payload = { score:state.score, step:CHAPTERS.length, badge, completed:true, timestamp:ts };
   try {
-    const payload = { score: state.score, step: CHAPTERS.length, badge, completed: true, timestamp: ts };
     if (state.docId) {
       await window.db.collection("leaderboard").doc(state.docId).update(payload);
     } else {
-      const snap = await window.db.collection("leaderboard")
-                                  .where("name", "==", state.team).get();
+      const snap = await window.db.collection("leaderboard").where("name","==",state.team).get();
       if (!snap.empty) {
         state.docId = snap.docs[0].id;
         await window.db.collection("leaderboard").doc(state.docId).update(payload);
       } else {
-        const ref = await window.db.collection("leaderboard").add({ name: state.team, ...payload });
-        state.docId = ref.id;
+        await window.db.collection("leaderboard").add({ name:state.team, ...payload });
       }
     }
-    statusEl.innerHTML = '<div class="save-status save-ok">Score saved to leaderboard.</div>';
-    console.log("✅ finalSave complete:", state.score, badge);
-  } catch (e) {
-    console.error("❌ finalSave FAILED:", e.code, e.message);
-    statusEl.innerHTML = `<div class="save-status save-err">Save failed (${e.code}). Check Firestore Rules.</div>`;
+    el.innerHTML = '<span class="ok-txt" style="font-size:.76rem">Score saved to leaderboard.</span>';
+    console.log("✅ Final save:", badge, state.score);
+  } catch(e) {
+    console.error("❌ finalSave:", e.code);
+    el.innerHTML = `<span class="err-txt" style="font-size:.76rem">Save failed (${e.code}). Check Firestore Rules.</span>`;
   }
 }
 
-/* ── Chapter Rendering ─────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   LIVE RANK TRACKING (from Question 2 onwards)
+══════════════════════════════════════════════════════════ */
+function startRankTracking() {
+  if (!window.db || rankUnsub) return;
+  const q = window.db.collection("leaderboard").orderBy("score","desc");
+  rankUnsub = q.onSnapshot(snap => {
+    let r=1; let found=false;
+    totalTeams = snap.size;
+    snap.forEach(doc => {
+      if (doc.id === state.docId) { myRank=r; found=true; }
+      r++;
+    });
+    if (!found && state.docId) myRank = totalTeams;
+    refreshRankBadge();
+  }, err => console.warn("Rank tracker:", err.code));
+}
+
+function stopRankTracking() {
+  if (rankUnsub) { rankUnsub(); rankUnsub=null; }
+}
+
+function refreshRankBadge() {
+  const el = document.getElementById('rank-badge');
+  if (!el) return;
+  // Show only from Chapter 2 onwards (after first answer: state.step >= 1)
+  if (state.step < 1 || myRank === null) { el.classList.remove('visible'); return; }
+  document.getElementById('rank-num').textContent = `#${myRank}`;
+  document.getElementById('rank-of').textContent  = `of ${totalTeams}`;
+  el.classList.add('visible');
+}
+
+/* ══════════════════════════════════════════════════════════
+   RENDER CHAPTER
+══════════════════════════════════════════════════════════ */
 function renderChapter() {
   const ch = CHAPTERS[state.step];
   clearInterval(state.timerInt);
-  state.timerSecs      = DISCUSS_SECS;
+  state.timerSecs = DISCUSS_SECS;
   state.choicesUnlocked = false;
 
   document.getElementById('phase-discuss').style.display  = 'block';
   document.getElementById('phase-feedback').style.display = 'none';
-  document.getElementById('ch-badge').textContent  = `Chapter ${state.step + 1} of ${CHAPTERS.length}`;
+  document.getElementById('ch-badge').textContent  = `Chapter ${state.step+1} of ${CHAPTERS.length}`;
   document.getElementById('s-title').textContent   = ch.title;
   document.getElementById('s-text').textContent    = ch.text;
-  updateMeter();
 
-  // Role prompts
   document.getElementById('rp-grid').innerHTML = ch.prompts.map(p => {
-    const [role, ...rest] = p.split(':');
+    const [role,...rest] = p.split(':');
     return `<div class="rp-item"><div class="rp-role">${esc(role)}</div><div class="rp-q">${esc(rest.join(':').trim())}</div></div>`;
   }).join('');
 
-  // Choice buttons — disabled until timer expires
-  document.getElementById('choices-div').innerHTML = ch.choices.map((c, i) =>
-    `<button class="choice-btn" id="cb${i}" onclick="choose(${i})" disabled>${['A', 'B', 'C'][i]}. ${esc(c.text)}</button>`
+  document.getElementById('choices-div').innerHTML = ch.choices.map((c,i) =>
+    `<button class="choice-btn" id="cb${i}" onclick="choose(${i})" disabled>${['A','B','C'][i]}. ${esc(c.text)}</button>`
   ).join('');
 
-  const lm = document.getElementById('locked-msg');
-  lm.className   = 'locked-msg';
+  const lm = document.getElementById('lock-msg');
+  lm.className = 'lock-msg';
   lm.textContent = 'Discuss with your team — Leader can answer when timer ends';
 
+  refreshRankBadge();
   startTimer();
 }
 
-/* ── Timer ─────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   TIMER
+══════════════════════════════════════════════════════════ */
 function startTimer() {
   updateTimerUI();
   state.timerInt = setInterval(() => {
@@ -751,71 +831,68 @@ function startTimer() {
 }
 
 function updateTimerUI() {
-  const s = state.timerSecs;
-  const m = Math.floor(s / 60), sec = s % 60;
-  document.getElementById('timer-num').textContent = `${m}:${sec < 10 ? '0' + sec : sec}`;
-  const offset = 283 * (1 - s / DISCUSS_SECS);
+  const s   = state.timerSecs;
+  const m   = Math.floor(s/60), sec = s%60;
+  document.getElementById('timer-num').textContent = `${m}:${sec<10?'0'+sec:sec}`;
   const prog   = document.getElementById('timer-prog');
+  const offset = CIRC * (1 - s/DISCUSS_SECS);
   prog.style.strokeDashoffset = offset;
-  prog.style.stroke = s < 30 ? '#f87171' : s < 60 ? '#f0a82e' : '#3b7ff5';
+  prog.style.stroke = s<30 ? 'var(--rd)' : s<60 ? 'var(--am)' : 'var(--blue)';
 }
 
 function unlockChoices() {
   state.choicesUnlocked = true;
-  const lm = document.getElementById('locked-msg');
-  lm.className   = 'locked-msg unlocked';
-  lm.textContent = "Discussion time up — Leader, select your team's answer below";
-  ['cb0', 'cb1', 'cb2'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
+  const lm = document.getElementById('lock-msg');
+  lm.className = 'lock-msg open';
+  lm.textContent = "Time's up — Leader, select your team's answer below";
+  ['cb0','cb1','cb2'].forEach(id => { const b=document.getElementById(id); if(b) b.disabled=false; });
 }
 
-/* ── Choice Selection ───────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   CHOOSE ANSWER
+══════════════════════════════════════════════════════════ */
 function choose(idx) {
   if (!state.choicesUnlocked) return;
   clearInterval(state.timerInt);
-  ['cb0', 'cb1', 'cb2'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+  ['cb0','cb1','cb2'].forEach(id => { const b=document.getElementById(id); if(b) b.disabled=true; });
 
-  const ch     = CHAPTERS[state.step];
-  const choice = ch.choices[idx];
-  document.getElementById('cb' + idx).classList.add(choice.type);
+  const ch = CHAPTERS[state.step], choice = ch.choices[idx];
+  document.getElementById('cb'+idx).classList.add(choice.type);
   state.score += choice.pts;
   updateMeter();
 
-  // ── Push live score to Firestore after every single answer ──
+  // Save to localStorage (nextStep = step+1 so resume goes to next chapter)
+  ls_save();
+  // Push live score to Firestore
   pushScore();
 
   document.getElementById('phase-discuss').style.display  = 'none';
   document.getElementById('phase-feedback').style.display = 'block';
-  document.getElementById('ch-badge2').textContent = `Chapter ${state.step + 1} of ${CHAPTERS.length}`;
+  document.getElementById('ch-badge2').textContent = `Chapter ${state.step+1} of ${CHAPTERS.length}`;
   document.getElementById('s-title2').textContent  = ch.title;
 
   showFeedback(choice.feedback, choice.type, ch);
 }
 
 function showFeedback(txt, type, ch) {
-  ['fb', 'insight', 'curveball', 'reflection'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
+  ['fb','insight','curveball','reflection'].forEach(id => {
+    document.getElementById(id).style.display='none';
   });
-
   const fb = document.getElementById('fb');
-  fb.className = `fb ${type}`;
-  fb.textContent  = txt;
-  fb.style.display = 'block';
+  fb.className=`panel pfb ${type}`; fb.textContent=txt; fb.style.display='block';
 
   const ins = document.getElementById('insight');
-  ins.innerHTML    = `<strong>DT Insight</strong>${esc(ch.insight)}`;
-  ins.style.display = 'block';
+  ins.innerHTML=`<span class="p-head">DT Insight</span>${esc(ch.insight)}`; ins.style.display='block';
 
   const cv = document.getElementById('curveball');
-  cv.innerHTML    = `<strong>Curveball — Discuss as a team (2 min)</strong>${esc(ch.curveball)}`;
-  cv.style.display = 'block';
+  cv.innerHTML=`<span class="p-head">Curveball — Discuss as a team</span>${esc(ch.curveball)}`; cv.style.display='block';
 
   const ref = document.getElementById('reflection');
-  ref.innerHTML    = `<strong>Team Reflection</strong>${esc(ch.reflection)}`;
-  ref.style.display = 'block';
+  ref.innerHTML=`<span class="p-head">Team Reflection</span>${esc(ch.reflection)}`; ref.style.display='block';
 
   const nb = document.getElementById('next-btn');
-  nb.style.display = 'block';
-  nb.textContent   = state.step < CHAPTERS.length - 1 ? 'Next Chapter' : 'See Final Results';
+  nb.style.display='block';
+  nb.textContent = state.step < CHAPTERS.length-1 ? 'Next Chapter →' : 'See Final Results →';
 }
 
 function nextChapter() {
@@ -826,104 +903,99 @@ function nextChapter() {
 
 function updateMeter() {
   const max = CHAPTERS.length * 20;
-  const pct = Math.min(100, (state.score / max) * 100);
-  document.getElementById('meter').style.width       = pct + '%';
-  document.getElementById('score-display').textContent = `${state.score} / ${max}`;
+  const pct = Math.min(100, (state.score/max)*100);
+  document.getElementById('meter').style.width = pct+'%';
+  document.getElementById('score-display').textContent = `${state.score}/${max}`;
 }
 
-/* ── End Game ───────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   END GAME
+══════════════════════════════════════════════════════════ */
 function endGame() {
-  const max = CHAPTERS.length * 20;
-  const pct = Math.round((state.score / max) * 100);
+  const max = CHAPTERS.length*20;
+  const pct = Math.round((state.score/max)*100);
 
-  let badge, styleStr, msg;
-  if (pct >= 80) {
-    badge    = 'Digital Champions';
-    styleStr = 'background:var(--correct-bg);color:var(--correct-tx);border:1px solid var(--correct-bd)';
-    msg      = 'Exceptional teamwork. Your team demonstrated strategic thinking across every dimension of digital transformation — from data ethics to change management.';
-  } else if (pct >= 55) {
-    badge    = 'Digital Explorers';
-    styleStr = 'background:rgba(59,127,245,0.1);color:#7fb3f8;border:1px solid rgba(59,127,245,0.3)';
-    msg      = 'Strong performance. Your team grasped the core principles and made mostly sound, commercially grounded decisions throughout.';
+  let badge, bStyle, msg;
+  if (pct>=80) {
+    badge='Digital Champions';
+    bStyle='background:var(--gn-bg);color:var(--gn);border:1px solid var(--gn-bd)';
+    msg='Exceptional teamwork. Your team demonstrated strategic thinking across every dimension of digital transformation — from data ethics to change management.';
+  } else if (pct>=55) {
+    badge='Digital Explorers';
+    bStyle='background:rgba(59,130,246,.1);color:var(--blue2);border:1px solid rgba(59,130,246,.3)';
+    msg='Strong performance. Your team grasped the core principles and made mostly sound, commercially grounded decisions throughout.';
   } else {
-    badge    = 'Transformation Beginners';
-    styleStr = 'background:var(--ok-bg);color:var(--ok-tx);border:1px solid var(--ok-bd)';
-    msg      = 'Good start. Digital transformation is complex and every expert started somewhere. Review the DT Insights from each chapter to sharpen your thinking.';
+    badge='Transformation Beginners';
+    bStyle='background:var(--am-bg);color:var(--am);border:1px solid var(--am-bd)';
+    msg='Good start. Digital transformation is complex and every expert started somewhere. Review the DT Insights from each chapter to sharpen your thinking.';
   }
 
   document.getElementById('end-score').textContent = state.score;
   const eb = document.getElementById('end-badge');
-  eb.textContent = badge;
-  eb.style.cssText = styleStr;
+  eb.textContent=badge; eb.style.cssText=bStyle;
   document.getElementById('end-msg').textContent = msg;
-  showScreen('sc-end');
 
-  finalSave(badge);
-}
-
-/* ── Leaderboard ────────────────────────────────────────────────────────── */
-function renderLB() {
-  const el = document.getElementById('lb-list');
-  el.innerHTML = '<div style="text-align:center;padding:28px 0;color:var(--text-2)"><span class="spinner"></span>Loading scores...</div>';
-
-  if (!window.db) {
-    el.innerHTML = '<p style="text-align:center;color:var(--wrong-tx);font-size:0.85rem;padding:28px 0">Firebase not ready. Check console for init error.</p>';
-    return;
+  // Show captured rank
+  if (myRank !== null && totalTeams > 0) {
+    document.getElementById('end-rank-num').textContent = `#${myRank}`;
+    document.getElementById('end-rank-lbl').textContent = `of ${totalTeams} teams`;
+    document.getElementById('end-rank-box').style.display = 'flex';
   }
 
-  // Clean up any existing real-time listener
-  if (lbUnsubscribe) { lbUnsubscribe(); lbUnsubscribe = null; }
+  ls_end();     // mark localStorage as ended (clears resume prompt for new game)
+  showScreen('sc-end');
+  finalSave(badge);
+  stopRankTracking();
+}
 
+/* ══════════════════════════════════════════════════════════
+   LEADERBOARD
+══════════════════════════════════════════════════════════ */
+function renderLB() {
+  const el = document.getElementById('lb-list');
+  el.innerHTML = '<div style="text-align:center;padding:28px;color:var(--t2)"><span class="spin"></span>Loading...</div>';
+  if (!window.db) {
+    el.innerHTML='<p style="text-align:center;color:var(--rd);font-size:.83rem;padding:28px 0">Firebase not initialised. Check console.</p>';
+    return;
+  }
+  if (lbUnsub) { lbUnsub(); lbUnsub=null; }
   try {
-    const q = window.db.collection("leaderboard").orderBy("score", "desc").limit(50);
-
-    lbUnsubscribe = q.onSnapshot(snap => {
+    const q = window.db.collection("leaderboard").orderBy("score","desc").limit(50);
+    lbUnsub = q.onSnapshot(snap => {
       if (snap.empty) {
-        el.innerHTML = '<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">No teams yet — be the first to start!</p>';
+        el.innerHTML='<p style="text-align:center;color:var(--t3);font-size:.83rem;padding:28px 0">No teams yet — be the first to start!</p>';
         return;
       }
-      let html = '', rank = 1;
+      let html='', rank=1;
       snap.forEach(doc => {
-        const t   = doc.data();
-        const rc  = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
-        const dot = !t.completed ? '<span class="progress-dot"></span>' : '';
-        const badgeLabel = !t.completed
-          ? `Ch.${t.step || 0}/8`
-          : esc(t.badge || '');
-        html += `<div class="lb-row">
+        const t=doc.data(), rc=rank===1?'g':rank===2?'s':rank===3?'b':'';
+        const dot=!t.completed?'<span class="prog-dot"></span>':'';
+        const bdg=!t.completed?`Ch.${t.step||0}/8`:esc(t.badge||'');
+        const me =doc.id===state.docId?'me':'';
+        html+=`<div class="lb-row ${me}">
           <span class="lb-rank ${rc}">${rank}</span>
-          <span class="lb-name">${dot}${esc(t.name || '')}</span>
-          <span class="lb-badge">${badgeLabel}</span>
-          <span class="lb-pts">${t.score || 0}/160</span>
+          <span class="lb-name">${dot}${esc(t.name||'')}</span>
+          <span class="lb-bdg">${bdg}</span>
+          <span class="lb-score">${t.score||0}/160</span>
         </div>`;
         rank++;
       });
-      el.innerHTML = html;
+      el.innerHTML=html;
     }, err => {
-      console.error("❌ Leaderboard onSnapshot error:", err.code, err.message);
-      const hint = err.code === 'permission-denied'
-        ? 'Firestore Rules are blocking reads. Update Rules in Firebase Console.'
-        : err.message;
-      el.innerHTML = `<p style="text-align:center;color:var(--wrong-tx);font-size:0.82rem;padding:28px 0">${esc(hint)}</p>`;
+      console.error("LB error:", err.code);
+      const hint = err.code==='permission-denied' ? ' — Update Firestore Rules.' : '';
+      el.innerHTML=`<p style="text-align:center;color:var(--rd);font-size:.8rem;padding:28px 0">${err.code}${hint}</p>`;
     });
-
-  } catch (e) {
-    console.error("❌ renderLB setup error:", e);
-    el.innerHTML = '<p style="text-align:center;color:var(--wrong-tx);font-size:0.85rem;padding:28px 0">Firestore query failed. Check console.</p>';
+  } catch(e) {
+    el.innerHTML='<p style="text-align:center;color:var(--rd);font-size:.8rem;padding:28px 0">Query failed. Check console.</p>';
   }
 }
 
-/* ── Utilities ──────────────────────────────────────────────────────────── */
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function resetGame() {
-  clearInterval(state.timerInt);
-  if (lbUnsubscribe) { lbUnsubscribe(); lbUnsubscribe = null; }
-  state = { team: '', score: 0, step: 0, timerInt: null, timerSecs: DISCUSS_SECS, choicesUnlocked: false, docId: null };
-  document.getElementById('team-input').value = '';
-  showScreen('sc-setup');
+/* ══════════════════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════════════════ */
+function esc(s){
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 </script>
 </body>
