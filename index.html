@@ -4,280 +4,276 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Transform or Fall Behind</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@600;700;800&display=swap');
 
-  :root {
-    --bg:          #080b10;
-    --surface:     #0f1520;
-    --surface-2:   #141c2a;
-    --surface-3:   #1a2438;
-    --border:      #1e2d45;
-    --border-2:    #243350;
-    --text-1:      #e2ebf8;
-    --text-2:      #7a92b4;
-    --text-3:      #445a7a;
-    --accent:      #3b7ff5;
-    --accent-glow: rgba(59,127,245,0.18);
-    --correct-bg:  #071a10;
-    --correct-bd:  #1a6b35;
-    --correct-tx:  #3dd68c;
-    --wrong-bg:    #1a0609;
-    --wrong-bd:    #7a1f1a;
-    --wrong-tx:    #f87171;
-    --ok-bg:       #1a1206;
-    --ok-bd:       #8a5a0a;
-    --ok-tx:       #f0a82e;
-    --radius:      10px;
-  }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    min-height: 100dvh;
-    display: grid;
-    place-items: center;
-    background: var(--bg);
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59,127,245,0.10) 0%, transparent 70%),
-      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,45,69,0.3) 40px),
-      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,45,69,0.3) 40px);
-    color: var(--text-1);
-    font-family: 'DM Mono', 'Fira Mono', monospace;
-    padding: 24px 16px;
-  }
-
-  /* ── Typography ── */
-  h1 {
-    font-family: 'Syne', sans-serif;
-    font-size: clamp(1.6rem, 4vw, 2.1rem);
-    font-weight: 800;
-    color: var(--text-1);
-    text-align: center;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-  }
-  .sub {
-    font-size: 0.82rem;
-    color: var(--text-3);
-    text-align: center;
-    margin-top: 6px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  /* ── Layout ── */
-  .screen { display: none; width: 100%; max-width: 760px; flex-direction: column; align-items: center; gap: 18px; }
-  .screen.active { display: flex; }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: clamp(20px, 4vw, 36px);
-    width: 100%;
-    box-shadow: 0 0 0 1px rgba(59,127,245,0.04), 0 24px 64px rgba(0,0,0,0.55);
-    position: relative;
-    overflow: hidden;
-  }
-  .card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(59,127,245,0.4), transparent);
-  }
-
-  /* ── Buttons ── */
-  .btn-primary {
-    width: 100%; padding: 14px 24px; margin-top: 12px;
-    background: var(--accent);
-    background-image: linear-gradient(135deg, #3b7ff5 0%, #2563d4 100%);
-    color: #fff; border: none; border-radius: var(--radius);
-    font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700;
-    letter-spacing: 0.02em; cursor: pointer;
-    box-shadow: 0 4px 20px rgba(59,127,245,0.25);
-    transition: box-shadow 0.2s, transform 0.1s, opacity 0.2s;
-  }
-  .btn-primary:hover { box-shadow: 0 6px 28px rgba(59,127,245,0.45); }
-  .btn-primary:active { transform: scale(0.99); }
-  .btn-primary:disabled { background: var(--surface-3); background-image: none; color: var(--text-3); box-shadow: none; cursor: not-allowed; }
-
-  .btn-ghost {
-    width: 100%; padding: 12px 24px; margin-top: 12px;
-    background: transparent; border: 1px solid var(--border-2); color: var(--text-2);
-    border-radius: var(--radius); font-family: 'DM Mono', monospace; font-size: 0.85rem;
-    font-weight: 500; cursor: pointer; transition: all 0.2s;
-  }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--text-1); background: var(--accent-glow); }
-
-  /* ── Role Grid ── */
-  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
-  .role-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
-  .role-title { font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .role-desc { font-size: 0.78rem; color: var(--text-2); line-height: 1.55; }
-
-  /* ── Input ── */
-  label { font-size: 0.75rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; }
-  input[type=text] {
-    width: 100%; padding: 13px 16px; margin-top: 8px;
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: var(--radius); color: var(--text-1);
-    font-family: 'DM Mono', monospace; font-size: 0.95rem;
-    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  input[type=text]::placeholder { color: var(--text-3); }
-  input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,127,245,0.12); }
-
-  /* ── Score Meter ── */
-  .meter-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
-  .meter-label { font-size: 0.65rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.12em; white-space: nowrap; }
-  .meter-bar { flex: 1; height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
-  .meter-fill { height: 100%; background: linear-gradient(90deg, #2563d4, #3b7ff5, #60a5fa); border-radius: 3px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
-  .meter-score { font-size: 0.8rem; font-weight: 500; color: var(--accent); min-width: 64px; text-align: right; }
-
-  /* ── Chapter Badge ── */
-  .chapter-badge {
-    display: inline-block; font-size: 0.65rem; font-weight: 500;
-    padding: 4px 10px; border-radius: 4px; margin-bottom: 14px;
-    background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border);
-    text-transform: uppercase; letter-spacing: 0.1em;
-  }
-
-  /* ── Scenario ── */
-  .phase-label { font-size: 0.65rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
-  .s-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-1); margin-bottom: 12px; }
-  .s-text {
-    font-size: 0.88rem; color: var(--text-2); line-height: 1.7;
-    padding: 16px 18px; background: var(--surface-2);
-    border-radius: var(--radius); border-left: 3px solid var(--accent);
-    margin-bottom: 22px;
-  }
-
-  /* ── Role Prompt Grid ── */
-  .rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 20px; }
-  .rp-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
-  .rp-role { font-size: 0.65rem; font-weight: 700; color: var(--accent); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.1em; }
-  .rp-q { font-size: 0.78rem; color: var(--text-2); line-height: 1.5; }
-
-  /* ── Timer Ring ── */
-  .timer-ring {
-    display: flex; flex-direction: column; align-items: center;
-    margin: 0 auto 22px; position: relative; width: 100px; height: 100px;
-  }
-  .timer-ring svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
-  .timer-ring circle { fill: none; stroke: var(--surface-3); stroke-width: 6; }
-  .timer-ring .prog { stroke: var(--accent); stroke-dasharray: 283; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke 0.4s; }
-  .timer-num { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.35rem; font-weight: 500; color: var(--text-1); }
-  .timer-label { font-size: 0.62rem; color: var(--text-3); margin-top: 108px; text-transform: uppercase; letter-spacing: 0.1em; }
-
-  /* ── Lock Message ── */
-  .locked-msg {
-    font-size: 0.8rem; color: var(--ok-tx); text-align: center; padding: 10px 14px;
-    background: var(--ok-bg); border-radius: var(--radius);
-    border: 1px solid var(--ok-bd); margin-bottom: 16px; font-weight: 500;
-    transition: all 0.3s;
-  }
-  .locked-msg.unlocked { color: var(--correct-tx); background: var(--correct-bg); border-color: var(--correct-bd); }
-
-  /* ── Choice Buttons ── */
-  .choice-btn {
-    width: 100%; padding: 15px 18px; margin-bottom: 10px;
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: var(--radius); color: var(--text-2);
-    font-family: 'DM Mono', monospace; font-size: 0.85rem; line-height: 1.55;
-    text-align: left; cursor: pointer; transition: all 0.2s;
-  }
-  .choice-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text-1); background: var(--accent-glow); }
-  .choice-btn:disabled { cursor: default; opacity: 0.45; }
-  .choice-btn.correct { border-color: var(--correct-bd); background: var(--correct-bg); color: var(--correct-tx); opacity: 1; }
-  .choice-btn.wrong   { border-color: var(--wrong-bd);   background: var(--wrong-bg);   color: var(--wrong-tx);   opacity: 1; }
-  .choice-btn.ok      { border-color: var(--ok-bd);      background: var(--ok-bg);      color: var(--ok-tx);      opacity: 1; }
-
-  /* ── Feedback Panels ── */
-  .fb, .insight, .curveball, .reflection {
-    display: none; padding: 15px 18px; border-radius: var(--radius);
-    font-size: 0.85rem; line-height: 1.7; margin-bottom: 12px;
-    border: 1px solid transparent; animation: fadeUp 0.35s ease;
-  }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-
-  .fb.correct { background: var(--correct-bg); border-color: var(--correct-bd); color: var(--correct-tx); }
-  .fb.wrong   { background: var(--wrong-bg);   border-color: var(--wrong-bd);   color: var(--wrong-tx); }
-  .fb.ok      { background: var(--ok-bg);      border-color: var(--ok-bd);      color: var(--ok-tx); }
-
-  .insight    { background: rgba(59,127,245,0.07); border-color: rgba(59,127,245,0.22); color: #7fb3f8; }
-  .insight strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color: #5a9af0; }
-
-  .curveball  { background: rgba(168,85,247,0.07); border-color: rgba(168,85,247,0.22); color: #c4a4f8; }
-  .curveball strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color: #a78bfa; }
-
-  .reflection { background: rgba(240,168,46,0.06); border-color: rgba(138,90,10,0.35); color: var(--ok-tx); }
-  .reflection strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color: #c8913a; }
-
-  /* ── Spinner ── */
-  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border-2); border-top-color: var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-
-  /* ── End Screen ── */
-  .end-score { font-family:'Syne',sans-serif; font-size: clamp(3rem,8vw,4.5rem); font-weight:800; color:var(--text-1); line-height:1; margin:16px 0 6px; text-align:center; }
-  .end-badge { display:inline-block; padding:7px 20px; border-radius:6px; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:20px; font-family:'Syne',sans-serif; }
-
-  /* ── Leaderboard ── */
-  .lb-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--radius); background:var(--surface-2); border:1px solid var(--border); margin-bottom:8px; font-size:0.85rem; }
-  .lb-rank { font-weight:500; min-width:24px; color:var(--text-3); }
-  .lb-rank.gold   { color:#d29922; }
-  .lb-rank.silver { color:#7a92b4; }
-  .lb-rank.bronze { color:#7a4e1a; }
-  .lb-name  { flex:1; color:var(--text-1); font-weight:500; }
-  .lb-badge { font-size:0.65rem; padding:3px 10px; border-radius:4px; background:var(--surface-3); color:var(--text-3); border:1px solid var(--border); }
-  .lb-pts   { font-weight:700; color:var(--accent); }
-
-  .live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3dd68c; margin-right:8px; animation:pulse 1.5s infinite; vertical-align:middle; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
-
-  .notice { font-size:0.73rem; color:var(--text-3); text-align:center; margin-top:16px; padding:10px; background:var(--surface-2); border-radius:var(--radius); border:1px solid var(--border); }
-
-  .loading { text-align:center; color:var(--text-2); font-size:0.85rem; padding:14px 0; display:none; }
-
-  /* ── Header strip in game ── */
-  .game-header { display:flex; justify-content:space-between; align-items:center; width:100%; max-width:760px; padding:0 4px; }
-  .game-header h1 { font-size:1rem; }
-  .team-tag { font-size:0.72rem; font-weight:500; color:var(--text-2); background:var(--surface-2); padding:5px 14px; border-radius:6px; border:1px solid var(--border); }
-
-  /* ── Responsive ── */
-  @media(max-width:580px){
-    .role-grid,.rp-grid { grid-template-columns:1fr; }
-    .card { padding:18px; }
-    .lb-row { flex-wrap:wrap; gap:6px; }
-    .lb-badge { margin-left:36px; }
-  }
-</style>
-
-<!--  SDK -->
+<!-- ── Firebase Compat SDKs ──────────────────────────────────────────────
+     Loaded synchronously in <head> — no ES module race conditions.
+     These replace the previous type="module" import which caused the
+     "message channel closed" error and window.db race condition.        -->
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 <script>
-  try {
-    firebase.initializeApp({
-      apiKey: "AIzaSyBt0i5mCJcQY7rw-MQx34dhe9-IBxKNkxA",
-      authDomain: "digital-transformation-16b42.firebaseapp.com",
-      projectId: "digital-transformation-16b42",
-      storageBucket: "digital-transformation-16b42.firebasestorage.app",
-      messagingSenderId: "202375001463",
-      appId: "1:202375001463:web:ce93f3772695be60435d72"
-    });
-    window.db = firebase.firestore();
-    console.log("Firebase initialised successfully.");
-  } catch(e) {
-    console.error("Firebase init failed:", e);
-    window.db = null;
-  }
+/*
+ * ════════════════════════════════════════════════════════════════════════
+ *  FIRESTORE SECURITY RULES — MUST DO THIS OR ALL WRITES WILL FAIL
+ * ════════════════════════════════════════════════════════════════════════
+ *  1. Go to https://console.firebase.google.com
+ *  2. Select project → Firestore Database → Rules tab
+ *  3. Replace everything with the rules below, then click Publish:
+ *
+ *  rules_version = '2';
+ *  service cloud.firestore {
+ *    match /databases/{database}/documents {
+ *      match /leaderboard/{doc} {
+ *        allow read, write: if true;
+ *      }
+ *    }
+ *  }
+ *
+ *  Without this, every write is silently rejected (permission-denied).
+ * ════════════════════════════════════════════════════════════════════════
+ */
+try {
+  firebase.initializeApp({
+    apiKey:            "AIzaSyBt0i5mCJcQY7rw-MQx34dhe9-IBxKNkxA",
+    authDomain:        "digital-transformation-16b42.firebaseapp.com",
+    projectId:         "digital-transformation-16b42",
+    storageBucket:     "digital-transformation-16b42.firebasestorage.app",
+    messagingSenderId: "202375001463",
+    appId:             "1:202375001463:web:ce93f3772695be60435d72"
+  });
+  window.db = firebase.firestore();
+  console.log("✅ Firebase ready");
+} catch(e) {
+  console.error("❌ Firebase init error:", e);
+  window.db = null;
+}
 </script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@600;700;800&display=swap');
+
+:root {
+  --bg:          #080b10;
+  --surface:     #0f1520;
+  --surface-2:   #141c2a;
+  --surface-3:   #1a2438;
+  --border:      #1e2d45;
+  --border-2:    #243350;
+  --text-1:      #e2ebf8;
+  --text-2:      #7a92b4;
+  --text-3:      #445a7a;
+  --accent:      #3b7ff5;
+  --accent-glow: rgba(59,127,245,0.18);
+  --correct-bg:  #071a10;
+  --correct-bd:  #1a6b35;
+  --correct-tx:  #3dd68c;
+  --wrong-bg:    #1a0609;
+  --wrong-bd:    #7a1f1a;
+  --wrong-tx:    #f87171;
+  --ok-bg:       #1a1206;
+  --ok-bd:       #8a5a0a;
+  --ok-tx:       #f0a82e;
+  --radius:      10px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(59,127,245,0.10) 0%, transparent 70%),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(30,45,69,0.3) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(30,45,69,0.3) 40px);
+  color: var(--text-1);
+  font-family: 'DM Mono', 'Fira Mono', monospace;
+  padding: 24px 16px;
+}
+
+h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.6rem, 4vw, 2.1rem);
+  font-weight: 800;
+  color: var(--text-1);
+  text-align: center;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.sub {
+  font-size: 0.82rem;
+  color: var(--text-3);
+  text-align: center;
+  margin-top: 6px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.screen { display: none; width: 100%; max-width: 760px; flex-direction: column; align-items: center; gap: 18px; }
+.screen.active { display: flex; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: clamp(20px, 4vw, 36px);
+  width: 100%;
+  box-shadow: 0 0 0 1px rgba(59,127,245,0.04), 0 24px 64px rgba(0,0,0,0.55);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(59,127,245,0.4), transparent);
+}
+
+.btn-primary {
+  width: 100%; padding: 14px 24px; margin-top: 12px;
+  background: linear-gradient(135deg, #3b7ff5 0%, #2563d4 100%);
+  color: #fff; border: none; border-radius: var(--radius);
+  font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700;
+  letter-spacing: 0.02em; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(59,127,245,0.25);
+  transition: box-shadow 0.2s, transform 0.1s;
+}
+.btn-primary:hover  { box-shadow: 0 6px 28px rgba(59,127,245,0.45); }
+.btn-primary:active { transform: scale(0.99); }
+.btn-primary:disabled { background: var(--surface-3); color: var(--text-3); box-shadow: none; cursor: not-allowed; }
+
+.btn-ghost {
+  width: 100%; padding: 12px 24px; margin-top: 12px;
+  background: transparent; border: 1px solid var(--border-2); color: var(--text-2);
+  border-radius: var(--radius); font-family: 'DM Mono', monospace; font-size: 0.85rem;
+  font-weight: 500; cursor: pointer; transition: all 0.2s;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--text-1); background: var(--accent-glow); }
+
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.role-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+.role-title { font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+.role-desc  { font-size: 0.78rem; color: var(--text-2); line-height: 1.55; }
+
+label { font-size: 0.75rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; }
+input[type=text] {
+  width: 100%; padding: 13px 16px; margin-top: 8px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-1);
+  font-family: 'DM Mono', monospace; font-size: 0.95rem;
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type=text]::placeholder { color: var(--text-3); }
+input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,127,245,0.12); }
+
+.meter-wrap  { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.meter-label { font-size: 0.65rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.12em; white-space: nowrap; }
+.meter-bar   { flex: 1; height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.meter-fill  { height: 100%; background: linear-gradient(90deg, #2563d4, #3b7ff5, #60a5fa); border-radius: 3px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
+.meter-score { font-size: 0.8rem; font-weight: 500; color: var(--accent); min-width: 64px; text-align: right; }
+
+.chapter-badge {
+  display: inline-block; font-size: 0.65rem; font-weight: 500;
+  padding: 4px 10px; border-radius: 4px; margin-bottom: 14px;
+  background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+
+.phase-label { font-size: 0.65rem; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
+.s-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-1); margin-bottom: 12px; }
+.s-text  { font-size: 0.88rem; color: var(--text-2); line-height: 1.7; padding: 16px 18px; background: var(--surface-2); border-radius: var(--radius); border-left: 3px solid var(--accent); margin-bottom: 22px; }
+
+.rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 20px; }
+.rp-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.rp-role { font-size: 0.65rem; font-weight: 700; color: var(--accent); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.1em; }
+.rp-q    { font-size: 0.78rem; color: var(--text-2); line-height: 1.5; }
+
+.timer-ring {
+  display: flex; flex-direction: column; align-items: center;
+  margin: 0 auto 22px; position: relative; width: 100px; height: 100px;
+}
+.timer-ring svg    { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+.timer-ring circle { fill: none; stroke: var(--surface-3); stroke-width: 6; }
+.timer-ring .prog  { stroke: var(--accent); stroke-dasharray: 283; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear, stroke 0.4s; }
+.timer-num   { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.35rem; font-weight: 500; color: var(--text-1); }
+.timer-label { font-size: 0.62rem; color: var(--text-3); margin-top: 108px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+.locked-msg { font-size: 0.8rem; color: var(--ok-tx); text-align: center; padding: 10px 14px; background: var(--ok-bg); border-radius: var(--radius); border: 1px solid var(--ok-bd); margin-bottom: 16px; font-weight: 500; transition: all 0.3s; }
+.locked-msg.unlocked { color: var(--correct-tx); background: var(--correct-bg); border-color: var(--correct-bd); }
+
+.choice-btn {
+  width: 100%; padding: 15px 18px; margin-bottom: 10px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-2);
+  font-family: 'DM Mono', monospace; font-size: 0.85rem; line-height: 1.55;
+  text-align: left; cursor: pointer; transition: all 0.2s;
+}
+.choice-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text-1); background: var(--accent-glow); }
+.choice-btn:disabled { cursor: default; opacity: 0.45; }
+.choice-btn.correct { border-color: var(--correct-bd); background: var(--correct-bg); color: var(--correct-tx); opacity: 1; }
+.choice-btn.wrong   { border-color: var(--wrong-bd);   background: var(--wrong-bg);   color: var(--wrong-tx);   opacity: 1; }
+.choice-btn.ok      { border-color: var(--ok-bd);      background: var(--ok-bg);      color: var(--ok-tx);      opacity: 1; }
+
+.fb, .insight, .curveball, .reflection {
+  display: none; padding: 15px 18px; border-radius: var(--radius);
+  font-size: 0.85rem; line-height: 1.7; margin-bottom: 12px;
+  border: 1px solid transparent; animation: fadeUp 0.35s ease;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.fb.correct { background: var(--correct-bg); border-color: var(--correct-bd); color: var(--correct-tx); }
+.fb.wrong   { background: var(--wrong-bg);   border-color: var(--wrong-bd);   color: var(--wrong-tx); }
+.fb.ok      { background: var(--ok-bg);      border-color: var(--ok-bd);      color: var(--ok-tx); }
+
+.insight   { background: rgba(59,127,245,0.07); border-color: rgba(59,127,245,0.22); color: #7fb3f8; }
+.insight   strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#5a9af0; }
+.curveball { background: rgba(168,85,247,0.07); border-color: rgba(168,85,247,0.22); color: #c4a4f8; }
+.curveball strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#a78bfa; }
+.reflection{ background: rgba(240,168,46,0.06); border-color: rgba(138,90,10,0.35);  color: var(--ok-tx); }
+.reflection strong { display:block; margin-bottom:5px; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#c8913a; }
+
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border-2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.end-score { font-family:'Syne',sans-serif; font-size:clamp(3rem,8vw,4.5rem); font-weight:800; color:var(--text-1); line-height:1; margin:16px 0 6px; text-align:center; }
+.end-badge { display:inline-block; padding:7px 20px; border-radius:6px; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:20px; font-family:'Syne',sans-serif; }
+
+.lb-row  { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--radius); background:var(--surface-2); border:1px solid var(--border); margin-bottom:8px; font-size:0.85rem; }
+.lb-rank { font-weight:500; min-width:24px; color:var(--text-3); }
+.lb-rank.gold   { color:#d29922; }
+.lb-rank.silver { color:#7a92b4; }
+.lb-rank.bronze { color:#7a4e1a; }
+.lb-name  { flex:1; color:var(--text-1); font-weight:500; }
+.lb-badge { font-size:0.65rem; padding:3px 10px; border-radius:4px; background:var(--surface-3); color:var(--text-3); border:1px solid var(--border); white-space:nowrap; }
+.lb-pts   { font-weight:700; color:var(--accent); white-space:nowrap; }
+
+.live-dot     { display:inline-block; width:7px; height:7px; border-radius:50%; background:#3dd68c; margin-right:8px; animation:pulse 1.5s infinite; vertical-align:middle; }
+.progress-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-right:5px; animation:pulse 1.5s infinite; vertical-align:middle; flex-shrink:0; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+.notice { font-size:0.73rem; color:var(--text-3); text-align:center; margin-top:16px; padding:10px; background:var(--surface-2); border-radius:var(--radius); border:1px solid var(--border); }
+
+.game-header { display:flex; justify-content:space-between; align-items:center; width:100%; max-width:760px; padding:0 4px; }
+.game-header h1 { font-size:1rem; }
+.team-tag { font-size:0.72rem; font-weight:500; color:var(--text-2); background:var(--surface-2); padding:5px 14px; border-radius:6px; border:1px solid var(--border); }
+
+.save-status { font-size:0.78rem; padding:8px 14px; border-radius:6px; margin:10px 0; text-align:center; }
+.save-ok  { background:var(--correct-bg); color:var(--correct-tx); border:1px solid var(--correct-bd); }
+.save-err { background:var(--wrong-bg);   color:var(--wrong-tx);   border:1px solid var(--wrong-bd); }
+
+@media(max-width:580px){
+  .role-grid,.rp-grid { grid-template-columns:1fr; }
+  .card { padding:18px; }
+  .lb-row { flex-wrap:wrap; gap:6px; }
+  .lb-badge { order:3; margin-left:36px; }
+}
+</style>
 </head>
 <body>
 
-<!-- ═══════════════ SETUP ═══════════════ -->
+<!-- ══════════════════════════════ SETUP ══════════════════════════════ -->
 <div class="screen active" id="sc-setup">
   <div style="text-align:center;padding:12px 0 10px">
     <h1>Transform or Fall Behind</h1>
@@ -299,11 +295,11 @@
     </div>
     <button class="btn-primary" onclick="startGame()">Start Game</button>
     <button class="btn-ghost" onclick="showScreen('sc-lb')">View Live Leaderboard</button>
-    <div class="notice">Leaderboard is shared live across all teams. Scores appear after completing all 8 chapters.</div>
+    <div class="notice">Your team appears on the leaderboard the moment you click Start. Scores update live after every question.</div>
   </div>
 </div>
 
-<!-- ═══════════════ GAME ═══════════════ -->
+<!-- ══════════════════════════════ GAME ══════════════════════════════ -->
 <div class="screen" id="sc-game">
   <div class="game-header">
     <h1>Transform or Fall Behind</h1>
@@ -316,12 +312,11 @@
       <span class="meter-score" id="score-display">0 / 160</span>
     </div>
 
-    <!-- Discussion Phase -->
     <div id="phase-discuss" style="display:none">
       <div class="phase-label">Discussion Phase</div>
       <span class="chapter-badge" id="ch-badge">Chapter 1 of 8</span>
       <div class="s-title" id="s-title"></div>
-      <div class="s-text" id="s-text"></div>
+      <div class="s-text"  id="s-text"></div>
       <div style="margin-bottom:18px">
         <div class="phase-label" style="margin-bottom:8px">Role Discussion Prompts</div>
         <div class="rp-grid" id="rp-grid"></div>
@@ -338,11 +333,10 @@
       <div id="choices-div"></div>
     </div>
 
-    <!-- Feedback Phase -->
     <div id="phase-feedback" style="display:none">
       <div class="phase-label">Feedback &amp; Reflection</div>
       <span class="chapter-badge" id="ch-badge2"></span>
-      <div class="s-title" id="s-title2"></div>
+      <div class="s-title"    id="s-title2"></div>
       <div class="fb"         id="fb"></div>
       <div class="insight"    id="insight"></div>
       <div class="curveball"  id="curveball"></div>
@@ -352,44 +346,47 @@
   </div>
 </div>
 
-<!-- ═══════════════ END ═══════════════ -->
+<!-- ══════════════════════════════ END ══════════════════════════════ -->
 <div class="screen" id="sc-end">
   <div class="card" style="text-align:center;padding:clamp(24px,5vw,48px)">
     <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text-1);margin-bottom:10px;">Game Complete</div>
     <div class="end-score" id="end-score"></div>
     <div style="font-size:0.72rem;color:var(--text-3);margin-bottom:18px;text-transform:uppercase;letter-spacing:0.12em;">out of 160 points</div>
     <div class="end-badge" id="end-badge"></div>
-    <div style="font-size:0.88rem;color:var(--text-2);line-height:1.7;margin-bottom:28px;max-width:480px;margin-left:auto;margin-right:auto" id="end-msg"></div>
-    <div class="loading" id="saving-score" style="display:block"><span class="spinner"></span>Saving to live leaderboard...</div>
-    <button class="btn-primary" id="view-lb-btn" onclick="showScreen('sc-lb')" style="display:none">View Live Leaderboard</button>
-    <button class="btn-ghost" onclick="resetGame()">Play Again</button>
+    <div style="font-size:0.88rem;color:var(--text-2);line-height:1.7;margin-bottom:24px;max-width:480px;margin-left:auto;margin-right:auto" id="end-msg"></div>
+    <div id="save-status-end"></div>
+    <button class="btn-primary" onclick="showScreen('sc-lb')">View Live Leaderboard</button>
+    <button class="btn-ghost"   onclick="resetGame()">Play Again</button>
   </div>
 </div>
 
-<!-- ═══════════════ LEADERBOARD ═══════════════ -->
+<!-- ══════════════════════════════ LEADERBOARD ══════════════════════════════ -->
 <div class="screen" id="sc-lb">
   <div class="card">
     <div style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:var(--text-1);text-align:center;margin-bottom:6px">
       <span class="live-dot"></span>Live Leaderboard
     </div>
-    <div style="font-size:0.72rem;color:var(--text-3);text-align:center;margin-bottom:22px;letter-spacing:0.08em;text-transform:uppercase;">Updates automatically via Firestore</div>
+    <div style="font-size:0.72rem;color:var(--text-3);text-align:center;margin-bottom:22px;letter-spacing:0.08em;text-transform:uppercase;">
+      Real-time · All teams visible from the moment they start
+    </div>
     <div id="lb-list">
-      <div class="loading" style="display:block"><span class="spinner"></span>Connecting to database...</div>
+      <div style="text-align:center;padding:28px 0;color:var(--text-2)">
+        <span class="spinner"></span>Connecting to Firestore...
+      </div>
     </div>
     <button class="btn-ghost" onclick="showScreen('sc-setup')" style="margin-top:16px">Back to Setup</button>
-    <div class="notice">Scores are shared across all devices in real-time.</div>
+    <div class="notice">
+      <span class="progress-dot"></span>= In Progress &nbsp;|&nbsp; Scores update after every answered question
+    </div>
   </div>
 </div>
 
 
-<!-- ═══════════════ GAME LOGIC ═══════════════ -->
+<!-- ══════════════════════════════ GAME LOGIC ══════════════════════════════ -->
 <script>
 const DISCUSS_SECS = 180;
 
-/* ─── Chapter Data with pre-authored feedback ───────────────────────────────
-   NOTE: All feedback text is embedded here. This replaces the Anthropic API
-   call that was causing CORS errors when opening the file locally (file://
-   protocol). No external API calls are made — the game works fully offline.   */
+/* ── Chapter data with pre-authored feedback (no API calls needed) ─────── */
 const CHAPTERS = [
   {
     title: "Wake-Up Call at RetailCo",
@@ -403,11 +400,11 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "Launch a flashy TV ad campaign to bring customers back to stores.", pts: 0, type: "wrong",
-        feedback: "A TV campaign addresses visibility, but misses the root cause — customers aren't avoiding RetailCo because they don't know it exists. They're choosing competitors because those competitors offer better digital experiences. Spending on ads without fixing the underlying model wastes capital and buys time you don't have. Takeaway: Diagnose before you prescribe." },
+        feedback: "A TV campaign addresses visibility but misses the root cause — customers aren't avoiding RetailCo because they don't know it exists. They're choosing competitors because those competitors offer better digital experiences. Spending on ads without fixing the underlying model wastes capital. Takeaway: Diagnose before you prescribe." },
       { text: "Conduct a full digital audit — understand where RetailCo stands vs competitors before acting.", pts: 20, type: "correct",
-        feedback: "Excellent strategic thinking. Before spending a single rupee, understanding your current digital maturity helps you prioritise investments and avoid expensive mistakes. The audit will reveal whether your biggest gap is e-commerce, data, logistics, or customer experience — and in which order to fix them. Takeaway: Always map where you are before you plan where you're going." },
+        feedback: "Excellent strategic thinking. Before spending a single rupee, understanding your current digital maturity helps you prioritise investments and avoid expensive mistakes. The audit will reveal whether your biggest gap is e-commerce, data, logistics, or customer experience. Takeaway: Always map where you are before you plan where you're going." },
       { text: "Immediately build a mobile app and website.", pts: 10, type: "ok",
-        feedback: "Building digital channels is necessary, but jumping straight to execution without understanding the full landscape is risky. You may build the wrong features for the wrong audience and burn your 6-month window. A digital audit first would ensure your app solves the right problems at the right priority. Takeaway: Speed matters, but direction matters more." }
+        feedback: "Building digital channels is necessary, but jumping to execution without understanding the full landscape is risky. You may build the wrong features for the wrong audience. A digital audit first would ensure your app solves the right problems at the right priority. Takeaway: Speed matters, but direction matters more." }
     ],
     insight: "Digital Transformation starts with understanding — not just doing. A digital audit identifies gaps, priorities, and readiness before money is spent.",
     curveball: "Your top competitor just launched same-day delivery. Customers are talking about it on social media. How does this change your urgency and sequence of actions?",
@@ -425,14 +422,14 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "Buy a third-party database of customer profiles from a data broker.", pts: 0, type: "wrong",
-        feedback: "Purchasing third-party data is legally risky, often inaccurate, and ethically questionable. Under data protection frameworks like India's DPDP Act, using data customers never consented to share with you can result in heavy penalties and permanent brand damage. You'd be building your future on someone else's ethics violation. Takeaway: Never build your data strategy on a foundation that can be taken away." },
+        feedback: "Purchasing third-party data is legally risky, often inaccurate, and ethically questionable. Under India's DPDP Act, using data customers never consented to share can result in heavy penalties and permanent brand damage. You'd be building your future on someone else's ethics violation. Takeaway: Never build your data strategy on a foundation that can be taken away." },
       { text: "Launch a loyalty programme — customers earn points for purchases, sharing data voluntarily.", pts: 20, type: "correct",
-        feedback: "Smart and sustainable. A loyalty programme creates a genuine value exchange — customers share data willingly because they receive tangible benefits in return. This first-party data is accurate, legally sound, and proprietary to you. It also drives repeat visits and higher basket sizes simultaneously. Takeaway: Ethical data is the only data worth having." },
+        feedback: "Smart and sustainable. A loyalty programme creates a genuine value exchange — customers share data willingly because they receive tangible benefits in return. This first-party data is accurate, legally sound, and proprietary to you. It also drives repeat visits simultaneously. Takeaway: Ethical data is the only data worth having." },
       { text: "Ask cashiers to manually note down customer preferences during checkout.", pts: 5, type: "ok",
-        feedback: "Well-intentioned but fatally unscalable. Manual data collection is slow, error-prone, inconsistent, and impossible to analyse at scale. It also places an unfair burden on frontline staff during peak hours. Even if it works today, it cannot support AI, personalisation, or predictive analytics in the future. Takeaway: If a process can't scale, it can't be the foundation of transformation." }
+        feedback: "Well-intentioned but fatally unscalable. Manual data collection is slow, error-prone, and impossible to analyse at scale. It places an unfair burden on frontline staff during peak hours, and cannot support AI or personalisation in the future. Takeaway: If a process can't scale, it can't be the foundation of transformation." }
     ],
     insight: "Good data strategy is built on trust. Customers willingly share data when they receive clear value. Ethical first-party collection also protects you from regulatory and reputational risk.",
-    curveball: "A new data privacy regulation just passed. Companies must now get explicit, opt-in consent before storing personal data. How does each approach hold up legally?",
+    curveball: "A new data privacy regulation just passed. Companies must now get explicit opt-in consent before storing personal data. How does each approach hold up legally?",
     reflection: "Think of a brand that uses your data really well. How does it feel when they get it right — and when they get it wrong?"
   },
   {
@@ -447,14 +444,14 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "Automate everything immediately — efficiency comes first.", pts: 5, type: "ok",
-        feedback: "Fast but risky. Immediate full automation without managing the human side generates resentment and quiet resistance that undermines the technology's effectiveness over time. Efficiency gains on paper can be erased by low morale, disengagement, and staff who work around the system rather than with it. Takeaway: Technology without a people strategy is incomplete." },
+        feedback: "Fast but risky. Immediate full automation without managing the human side generates resentment that undermines the technology's effectiveness over time. Efficiency gains on paper can be erased by low morale and staff who work around the system. Takeaway: Technology without a people strategy is incomplete." },
       { text: "Do nothing — the team's fears are valid and morale matters.", pts: 0, type: "wrong",
-        feedback: "Inaction creates a false choice. You can address staff fears AND implement automation — these are not mutually exclusive. Losing ₹12 lakhs every month is not sustainable, and delaying will only make the eventual change harder, more expensive, and more disruptive. Takeaway: Compassion and progress are not opposites." },
+        feedback: "Inaction creates a false choice. You can address staff fears AND implement automation — these are not mutually exclusive. Losing ₹12 lakhs monthly is not sustainable, and delaying will only make the eventual change harder and more disruptive. Takeaway: Compassion and progress are not opposites." },
       { text: "Automate stock counting, then retrain warehouse staff for data oversight and exception handling roles.", pts: 20, type: "correct",
-        feedback: "This is the gold standard response. You reduce errors and costs while proving that transformation is about empowering people, not replacing them. Reskilled staff bring operational context and institutional knowledge that pure automation cannot replicate — and they become your strongest transformation advocates. Takeaway: The best automation strategies invest in people simultaneously." }
+        feedback: "This is the gold standard response. You reduce errors and costs while proving that transformation is about empowering people, not replacing them. Reskilled staff bring operational context that pure automation cannot replicate and become your strongest transformation advocates. Takeaway: The best automation strategies invest in people simultaneously." }
     ],
-    insight: "Automation doesn't always eliminate jobs — it transforms them. The strongest DT strategies automate repetitive tasks while reskilling employees for higher-value, higher-judgment roles.",
-    curveball: "During rollout, the new automated system crashes for 48 hours during peak shopping season. How do you manage the crisis without destroying confidence in the transformation?",
+    insight: "Automation doesn't always eliminate jobs — it transforms them. The strongest DT strategies automate repetitive tasks while reskilling employees for higher-value roles.",
+    curveball: "During rollout, the automated system crashes for 48 hours during peak season. How do you manage the crisis without destroying confidence in the transformation?",
     reflection: "Can you name a job role that has been transformed — not eliminated — by technology in the last 10 years? What changed?"
   },
   {
@@ -469,11 +466,11 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "Delay the decision — the upfront cost is too high right now.", pts: 0, type: "wrong",
-        feedback: "Delaying a decision is itself a decision — one that costs ₹15 lakhs in potential savings for every year you wait, while aging servers continue to risk catastrophic failure. At ₹15 lakhs annual savings, the ₹40 lakh investment breaks even in under 3 years. The Finance Head is optimising for the wrong time horizon. Takeaway: Inaction always has a price — always calculate it." },
+        feedback: "Delaying a decision is itself a decision — one that costs ₹15 lakhs in potential savings for every year you wait, while aging servers continue to risk catastrophic failure. At ₹15 lakh annual savings, the ₹40 lakh investment breaks even in under 3 years. Takeaway: Inaction always has a price — always calculate it." },
       { text: "Migrate everything to cloud immediately — rip off the bandaid.", pts: 8, type: "ok",
-        feedback: "Courageous but risky. A full immediate migration with 15-year-old legacy systems often creates data loss, integration failures, and operational chaos during the transition window. Most enterprises that attempt full migrations without phasing experience significant disruption that erodes the financial case. Takeaway: Even the right direction can be taken too fast." },
+        feedback: "Courageous but risky. A full immediate migration with 15-year-old legacy systems often creates data loss, integration failures, and operational chaos during the transition window. Most enterprises that rush full migrations experience disruption that erodes the financial case. Takeaway: Even the right direction can be taken too fast." },
       { text: "Start with a hybrid approach — move critical systems first, phase the rest over 12 months.", pts: 20, type: "correct",
-        feedback: "Strategically sound. A hybrid approach lets you move your highest-risk systems first, demonstrate measurable ROI to the Finance Head, build IT team competence gradually, and spread the financial burden across the year. This is how most successful enterprise cloud migrations are executed. Takeaway: Phased transformation manages risk without sacrificing progress." }
+        feedback: "Strategically sound. A hybrid approach lets you move the highest-risk systems first, demonstrate ROI to the Finance Head, build IT team competence gradually, and spread the financial burden. This is how most successful enterprise cloud migrations are executed. Takeaway: Phased transformation manages risk without sacrificing progress." }
     ],
     insight: "Cloud migration doesn't have to be all-or-nothing. A phased, hybrid approach manages risk while building momentum and confidence across the organisation.",
     curveball: "Your cloud vendor increases pricing by 20% after you've signed and migrated. What contractual clauses should your team have negotiated upfront?",
@@ -491,14 +488,14 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "Let AI make all procurement decisions automatically — remove human bias entirely.", pts: 8, type: "ok",
-        feedback: "Removing human oversight from high-stakes financial decisions is dangerous. AI models have blind spots, data errors, and no understanding of external context — geopolitical disruptions, supplier failures, sudden trend reversals, or local events. Full automation also removes clear accountability when things go wrong. Takeaway: Never remove the human from high-consequence decisions." },
+        feedback: "Removing human oversight from high-stakes financial decisions is dangerous. AI models have blind spots, data errors, and no understanding of external context — geopolitical disruptions, supplier failures, sudden trend reversals. Full automation also removes clear accountability when things go wrong. Takeaway: Never remove the human from high-consequence decisions." },
       { text: "Ignore AI — gut feel has worked for 20 years.", pts: 0, type: "wrong",
-        feedback: "Dismissing AI because gut feel worked historically is survivorship bias — you remember the good calls, not the 40% overstock losses. Your competitors are already using predictive analytics to outmanoeuvre you season after season. Gut feel in a data-rich environment is no longer a competitive strategy. Takeaway: Past success is not a strategy for future markets." },
+        feedback: "Dismissing AI because gut feel worked historically is survivorship bias — you remember the good calls, not the 40% overstock losses. Your competitors are already using predictive analytics to outmanoeuvre you. Gut feel in a data-rich environment is no longer a competitive strategy. Takeaway: Past success is not a strategy for future markets." },
       { text: "Use AI recommendations as primary input, but the procurement team reviews and approves all final orders.", pts: 20, type: "correct",
-        feedback: "This is the right balance. AI provides pattern recognition across thousands of data points simultaneously; humans provide context, judgment, ethical guardrails, and accountability. The hybrid model also helps your procurement team build trust in AI incrementally, rather than feeling replaced overnight. Takeaway: The best decisions combine machine intelligence with human wisdom." }
+        feedback: "This is the right balance. AI provides pattern recognition across thousands of data points simultaneously; humans provide context, judgment, and accountability. The hybrid model also helps your procurement team build trust in AI incrementally rather than feeling replaced overnight. Takeaway: The best decisions combine machine intelligence with human wisdom." }
     ],
     insight: "AI augments human intelligence — it doesn't replace judgment. The strongest AI implementations pair machine pattern recognition with human context, ethics, and clear accountability.",
-    curveball: "The AI model makes a large recommendation based on corrupted input data. ₹80 lakhs of wrong products are ordered before anyone notices. Who is accountable — the AI, the data team, or the manager who approved?",
+    curveball: "The AI model makes a recommendation based on corrupted input data. ₹80 lakhs of wrong products are ordered before anyone notices. Who is accountable — the AI, the data team, or the manager who approved?",
     reflection: "Where in your industry do you think AI will have its largest operational impact in the next 5 years? Which jobs will be transformed?"
   },
   {
@@ -513,11 +510,11 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "Say nothing publicly until you have the full picture — avoid unnecessary panic.", pts: 0, type: "wrong",
-        feedback: "Silence during an active breach is a catastrophic error. Every hour of delay increases legal liability and allows more customers to be harmed without any chance to protect themselves. When the full story eventually emerges — and it always does — your silence becomes the headline, maximising reputational and regulatory damage. Takeaway: In a crisis, the cover-up is always worse than the original incident." },
+        feedback: "Silence during an active breach is a catastrophic error. Every hour of delay increases legal liability and allows more customers to be harmed. When the full story emerges — and it always does — your silence becomes the headline, maximising reputational and regulatory damage. Takeaway: In a crisis, the cover-up is always worse than the original incident." },
       { text: "Immediately notify affected customers, regulators, and the public. Offer free credit monitoring.", pts: 20, type: "correct",
-        feedback: "This is the only ethically and legally defensible response. Rapid, transparent notification protects customers from further harm, limits legal exposure, and — counter-intuitively — builds long-term trust. Companies that respond with speed, honesty, and practical support consistently recover their reputation faster than those that delay. Takeaway: Trust is rebuilt through transparency, not silence." },
+        feedback: "This is the only ethically and legally defensible response. Rapid transparent notification protects customers from further harm, limits legal exposure, and builds long-term trust. Companies that respond with speed, honesty, and practical support consistently recover their reputation faster. Takeaway: Trust is rebuilt through transparency, not silence." },
       { text: "Quietly fix the breach and only notify customers if legally required.", pts: 3, type: "wrong",
-        feedback: "A quiet fix without proactive notification violates data protection law in most jurisdictions, including India's DPDP framework. When regulators investigate — and they will — this approach results in maximum penalties and the most severe reputational damage possible. There is no such thing as a contained breach in the age of social media. Takeaway: There is no quiet data breach." }
+        feedback: "A quiet fix without proactive notification violates data protection law in most jurisdictions, including India's DPDP framework. When regulators investigate — and they will — this approach results in maximum penalties and the most severe reputational damage possible. Takeaway: There is no quiet data breach." }
     ],
     insight: "Cybersecurity is a critical pillar of digital transformation. Transparency during a breach builds long-term trust. Concealment creates far greater legal, financial, and reputational damage.",
     curveball: "A regulator calls — you had a mandatory 72-hour window to report this breach under law, and you missed it. What are the legal consequences and what is your immediate response?",
@@ -535,14 +532,14 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "Make digital tool usage mandatory — track compliance and penalise non-use.", pts: 5, type: "ok",
-        feedback: "Mandating adoption creates short-term compliance but deeper resentment. Staff will use the tool minimally and mechanically to avoid penalties, not creatively to generate results. You get box-ticking, not transformation. The underlying resistance remains and will resurface whenever enforcement relaxes. Takeaway: Compliance is not the same as transformation." },
+        feedback: "Mandating adoption creates short-term compliance but deeper resentment. Staff will use the tool minimally to avoid penalties, not creatively to generate results. You get box-ticking, not transformation. The underlying resistance resurfaces whenever enforcement relaxes. Takeaway: Compliance is not the same as transformation." },
       { text: "Accept it — you can't force culture change.", pts: 0, type: "wrong",
-        feedback: "Passive acceptance is not compassion — it is abdication of leadership. Your organisation has invested heavily in technology that is now sitting unused. Culture must be actively led and shaped; it does not change on its own. Acceptance here leads to transformation failure, wasted capital, and competitive decline. Takeaway: Change leadership is not optional — it is the job." },
+        feedback: "Passive acceptance is not compassion — it is abdication of leadership. Your organisation has invested heavily in technology that now sits unused. Culture must be actively led; it does not change on its own. Acceptance leads to transformation failure, wasted capital, and competitive decline. Takeaway: Change leadership is not optional — it is the job." },
       { text: "Identify internal champions, run peer-led training, share quick wins, and publicly celebrate early adopters.", pts: 20, type: "correct",
-        feedback: "This is evidence-based change management. Internal champions carry peer credibility that management simply cannot. Quick, visible wins create momentum and proof. Public recognition makes digital adoption aspirational rather than obligatory. This approach builds durable cultural change rather than enforced compliance that evaporates the moment enforcement stops. Takeaway: Culture changes person by person, story by story." }
+        feedback: "This is evidence-based change management. Internal champions carry peer credibility that management cannot. Quick visible wins create momentum. Public recognition makes digital adoption aspirational rather than obligatory. This approach builds durable cultural change rather than enforced compliance. Takeaway: Culture changes person by person, story by story." }
     ],
-    insight: "Culture is the hardest part of digital transformation. Research consistently shows 70% of DT programmes fail because of people and culture — not technology. Change must be led from within.",
-    curveball: "The floor manager who was your loudest resister just became your biggest champion after a peer training session. How do you leverage this exact moment to accelerate adoption across the organisation?",
+    insight: "Culture is the hardest part of digital transformation. Research shows 70% of DT programmes fail because of people and culture — not technology. Change must be led from within.",
+    curveball: "The floor manager who was your loudest resister just became your biggest champion after a peer training session. How do you leverage this moment to accelerate adoption across the organisation?",
     reflection: "Think about a time you personally resisted a new system or process at work or college. What eventually made you adopt it? What was the turning point?"
   },
   {
@@ -557,172 +554,294 @@ const CHAPTERS = [
     ],
     choices: [
       { text: "We've completed the transformation — focus on stability and cost control now.", pts: 0, type: "wrong",
-        feedback: "After a major transformation, the instinct to stabilise is completely understandable — and completely dangerous. The digital landscape continues to shift. Competitors who keep investing will overtake you within 2 to 3 years. The goal was never to complete a project; it was to become a fundamentally different, more adaptive kind of company. Takeaway: There is no finish line in digital transformation." },
+        feedback: "After a transformation, the instinct to stabilise is understandable — and dangerous. The digital landscape continues to shift. Competitors who keep investing will overtake you within 2 to 3 years. The goal was never to complete a project; it was to become a fundamentally more adaptive company. Takeaway: There is no finish line in digital transformation." },
       { text: "Set up a permanent DT team, continuous learning budget, and quarterly innovation reviews.", pts: 20, type: "correct",
-        feedback: "This is strategic maturity. Building a permanent internal capability — dedicated DT leadership, continuous learning budgets, quarterly innovation reviews — institutionalises transformation as a way of operating rather than a one-time event. You stop reacting to disruption and start building the muscle to anticipate it. Takeaway: Make adaptability a core competency, not a crisis response." },
+        feedback: "This is strategic maturity. Building a permanent internal capability — dedicated DT leadership, continuous learning budgets, quarterly innovation reviews — institutionalises transformation as a way of operating rather than a one-time event. You stop reacting to disruption and start anticipating it. Takeaway: Make adaptability a core competency, not a crisis response." },
       { text: "Hire a fresh batch of external tech consultants every 2 years to keep us updated.", pts: 8, type: "ok",
-        feedback: "External consultants bring valuable perspective but no institutional memory, no operational accountability, and no long-term skin in the game. Relying on them cyclically creates knowledge dependency, recurring costs, and an organisation that never builds genuine internal digital capability. Takeaway: Digital capability must be grown inside the organisation — not rented from outside indefinitely." }
+        feedback: "External consultants bring perspective but no institutional memory and no long-term accountability. Relying on them cyclically creates knowledge dependency, recurring costs, and an organisation that never builds genuine internal digital capability. Takeaway: Digital capability must be grown inside the organisation — not rented indefinitely." }
     ],
     insight: "Digital Transformation is not a project with an end date — it is a continuous operating philosophy. The companies that stay ahead build adaptability into their culture and structures permanently.",
-    curveball: "A funded startup just launched an AI-powered personal stylist that completely changes how people shop for clothes online. What is RetailCo's 90-day response plan and who owns it?",
-    reflection: "What is one thing you will personally do differently — at work, in your team, or in how you approach problems — because of what you experienced in this game today?"
+    curveball: "A funded startup just launched an AI-powered personal stylist that completely changes how people shop for clothes. What is RetailCo's 90-day response plan and who owns it?",
+    reflection: "What is one thing you will personally do differently — at work or in how you approach problems — because of what you experienced in this game today?"
   }
 ];
 
-/* ─── State ─────────────────────────────────────────────────────────────── */
-let state = { team:'', score:0, step:0, timerInt:null, timerSecs:DISCUSS_SECS, choicesUnlocked:false };
+/* ── State ─────────────────────────────────────────────────────────────── */
+let state = {
+  team: '', score: 0, step: 0,
+  timerInt: null, timerSecs: DISCUSS_SECS, choicesUnlocked: false,
+  docId: null   // Firestore document ID, set once on registration
+};
 let lbUnsubscribe = null;
 
-/* ─── Screen Management ─────────────────────────────────────────────────── */
-function showScreen(id){
+/* ── Screen Management ──────────────────────────────────────────────────── */
+function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if(id === 'sc-lb') renderLB();
+  if (id === 'sc-lb') renderLB();
 }
 
-function startGame(){
+/* ── Game Start ─────────────────────────────────────────────────────────── */
+function startGame() {
   const n = document.getElementById('team-input').value.trim();
-  if(!n){ alert('Please enter a team name before starting.'); return; }
-  state = { team:n, score:0, step:0, timerInt:null, timerSecs:DISCUSS_SECS, choicesUnlocked:false };
+  if (!n) { alert('Please enter a team name before starting.'); return; }
+
+  state = { team: n, score: 0, step: 0, timerInt: null, timerSecs: DISCUSS_SECS, choicesUnlocked: false, docId: null };
   document.getElementById('team-label').textContent = n;
   showScreen('sc-game');
   renderChapter();
+
+  // Register in Firestore immediately — team appears on leaderboard at once
+  registerTeam();
 }
 
-/* ─── Chapter Rendering ─────────────────────────────────────────────────── */
-function renderChapter(){
+/* ══════════════════════════════════════════════════════════════════════════
+   FIREBASE FUNCTIONS
+   Three separate async functions, each self-contained with full error logs.
+   registerTeam  → called once on game start  (creates doc, score = 0)
+   pushScore     → called after every question (updates score live)
+   finalSave     → called at game end          (adds badge, marks completed)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+async function registerTeam() {
+  if (!window.db) {
+    console.error("❌ window.db is null — Firebase did not initialise. Check the <head> script.");
+    return;
+  }
+  console.log("🔄 registerTeam: registering", state.team);
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  try {
+    // Check for existing document with same name (handles Play Again)
+    const existing = await window.db.collection("leaderboard")
+                                    .where("name", "==", state.team)
+                                    .get();
+    if (!existing.empty) {
+      state.docId = existing.docs[0].id;
+      await window.db.collection("leaderboard").doc(state.docId).update({
+        score: 0, step: 0, badge: "In Progress", completed: false, timestamp: ts
+      });
+      console.log("✅ Existing team reset. docId:", state.docId);
+    } else {
+      const ref = await window.db.collection("leaderboard").add({
+        name: state.team, score: 0, step: 0,
+        badge: "In Progress", completed: false, timestamp: ts
+      });
+      state.docId = ref.id;
+      console.log("✅ New team created. docId:", state.docId);
+    }
+  } catch (e) {
+    console.error("❌ registerTeam FAILED:", e.code, e.message);
+    if (e.code === "permission-denied") {
+      console.error("🔒 FIRESTORE RULES are blocking this write.");
+      console.error("   → Go to Firebase Console → Firestore Database → Rules");
+      console.error("   → Set: allow read, write: if true; for /leaderboard/{doc}");
+      console.error("   → Click Publish. Then refresh this page.");
+    }
+  }
+}
+
+async function pushScore() {
+  if (!window.db) return;
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  try {
+    if (state.docId) {
+      // Fast path — we have the doc reference
+      await window.db.collection("leaderboard").doc(state.docId).update({
+        score: state.score, step: state.step, timestamp: ts
+      });
+      console.log("✅ pushScore:", state.score, "pts | step:", state.step);
+    } else {
+      // Fallback — registerTeam may still be in-flight, query by name
+      console.warn("⚠️ pushScore: docId not yet set, querying by name...");
+      const snap = await window.db.collection("leaderboard")
+                                  .where("name", "==", state.team).get();
+      if (!snap.empty) {
+        state.docId = snap.docs[0].id;
+        await window.db.collection("leaderboard").doc(state.docId).update({
+          score: state.score, step: state.step, timestamp: ts
+        });
+        console.log("✅ pushScore (fallback):", state.score, "pts");
+      } else {
+        // Document doesn't exist at all — create it now
+        const ref = await window.db.collection("leaderboard").add({
+          name: state.team, score: state.score, step: state.step,
+          badge: "In Progress", completed: false, timestamp: ts
+        });
+        state.docId = ref.id;
+        console.log("✅ pushScore (created new doc):", state.docId);
+      }
+    }
+  } catch (e) {
+    console.error("❌ pushScore FAILED:", e.code, e.message);
+  }
+}
+
+async function finalSave(badge) {
+  const statusEl = document.getElementById('save-status-end');
+  statusEl.innerHTML = '<div class="save-status"><span class="spinner"></span>Saving final score...</div>';
+
+  if (!window.db) {
+    statusEl.innerHTML = '<div class="save-status save-err">Firebase unavailable — score not saved.</div>';
+    return;
+  }
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  try {
+    const payload = { score: state.score, step: CHAPTERS.length, badge, completed: true, timestamp: ts };
+    if (state.docId) {
+      await window.db.collection("leaderboard").doc(state.docId).update(payload);
+    } else {
+      const snap = await window.db.collection("leaderboard")
+                                  .where("name", "==", state.team).get();
+      if (!snap.empty) {
+        state.docId = snap.docs[0].id;
+        await window.db.collection("leaderboard").doc(state.docId).update(payload);
+      } else {
+        const ref = await window.db.collection("leaderboard").add({ name: state.team, ...payload });
+        state.docId = ref.id;
+      }
+    }
+    statusEl.innerHTML = '<div class="save-status save-ok">Score saved to leaderboard.</div>';
+    console.log("✅ finalSave complete:", state.score, badge);
+  } catch (e) {
+    console.error("❌ finalSave FAILED:", e.code, e.message);
+    statusEl.innerHTML = `<div class="save-status save-err">Save failed (${e.code}). Check Firestore Rules.</div>`;
+  }
+}
+
+/* ── Chapter Rendering ─────────────────────────────────────────────────── */
+function renderChapter() {
   const ch = CHAPTERS[state.step];
   clearInterval(state.timerInt);
-  state.timerSecs = DISCUSS_SECS;
+  state.timerSecs      = DISCUSS_SECS;
   state.choicesUnlocked = false;
 
   document.getElementById('phase-discuss').style.display  = 'block';
   document.getElementById('phase-feedback').style.display = 'none';
-  document.getElementById('ch-badge').textContent = `Chapter ${state.step+1} of ${CHAPTERS.length}`;
-  document.getElementById('s-title').textContent  = ch.title;
-  document.getElementById('s-text').textContent   = ch.text;
+  document.getElementById('ch-badge').textContent  = `Chapter ${state.step + 1} of ${CHAPTERS.length}`;
+  document.getElementById('s-title').textContent   = ch.title;
+  document.getElementById('s-text').textContent    = ch.text;
   updateMeter();
 
-  /* Role prompts */
+  // Role prompts
   document.getElementById('rp-grid').innerHTML = ch.prompts.map(p => {
     const [role, ...rest] = p.split(':');
     return `<div class="rp-item"><div class="rp-role">${esc(role)}</div><div class="rp-q">${esc(rest.join(':').trim())}</div></div>`;
   }).join('');
 
-  /* Choice buttons — disabled until timer expires */
+  // Choice buttons — disabled until timer expires
   document.getElementById('choices-div').innerHTML = ch.choices.map((c, i) =>
-    `<button class="choice-btn" id="cb${i}" onclick="choose(${i})" disabled>${['A','B','C'][i]}. ${esc(c.text)}</button>`
+    `<button class="choice-btn" id="cb${i}" onclick="choose(${i})" disabled>${['A', 'B', 'C'][i]}. ${esc(c.text)}</button>`
   ).join('');
 
   const lm = document.getElementById('locked-msg');
-  lm.className = 'locked-msg';
+  lm.className   = 'locked-msg';
   lm.textContent = 'Discuss with your team — Leader can answer when timer ends';
 
   startTimer();
 }
 
-/* ─── Timer ─────────────────────────────────────────────────────────────── */
-function startTimer(){
+/* ── Timer ─────────────────────────────────────────────────────────────── */
+function startTimer() {
   updateTimerUI();
   state.timerInt = setInterval(() => {
     state.timerSecs--;
     updateTimerUI();
-    if(state.timerSecs <= 0){ clearInterval(state.timerInt); unlockChoices(); }
+    if (state.timerSecs <= 0) { clearInterval(state.timerInt); unlockChoices(); }
   }, 1000);
 }
 
-function updateTimerUI(){
+function updateTimerUI() {
   const s = state.timerSecs;
-  const m = Math.floor(s/60), sec = s%60;
-  document.getElementById('timer-num').textContent = `${m}:${sec<10?'0'+sec:sec}`;
-  const offset = 283 * (1 - s/DISCUSS_SECS);
-  const prog = document.getElementById('timer-prog');
+  const m = Math.floor(s / 60), sec = s % 60;
+  document.getElementById('timer-num').textContent = `${m}:${sec < 10 ? '0' + sec : sec}`;
+  const offset = 283 * (1 - s / DISCUSS_SECS);
+  const prog   = document.getElementById('timer-prog');
   prog.style.strokeDashoffset = offset;
   prog.style.stroke = s < 30 ? '#f87171' : s < 60 ? '#f0a82e' : '#3b7ff5';
 }
 
-function unlockChoices(){
+function unlockChoices() {
   state.choicesUnlocked = true;
   const lm = document.getElementById('locked-msg');
-  lm.className = 'locked-msg unlocked';
+  lm.className   = 'locked-msg unlocked';
   lm.textContent = "Discussion time up — Leader, select your team's answer below";
-  ['cb0','cb1','cb2'].forEach(id => {
-    const b = document.getElementById(id);
-    if(b) b.disabled = false;
-  });
+  ['cb0', 'cb1', 'cb2'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = false; });
 }
 
-/* ─── Choice Selection ──────────────────────────────────────────────────── */
-function choose(idx){
-  if(!state.choicesUnlocked) return;
+/* ── Choice Selection ───────────────────────────────────────────────────── */
+function choose(idx) {
+  if (!state.choicesUnlocked) return;
   clearInterval(state.timerInt);
-  ['cb0','cb1','cb2'].forEach(id => { const b=document.getElementById(id); if(b) b.disabled=true; });
+  ['cb0', 'cb1', 'cb2'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
 
-  const ch = CHAPTERS[state.step];
+  const ch     = CHAPTERS[state.step];
   const choice = ch.choices[idx];
-  document.getElementById('cb'+idx).classList.add(choice.type);
+  document.getElementById('cb' + idx).classList.add(choice.type);
   state.score += choice.pts;
   updateMeter();
 
+  // ── Push live score to Firestore after every single answer ──
+  pushScore();
+
   document.getElementById('phase-discuss').style.display  = 'none';
   document.getElementById('phase-feedback').style.display = 'block';
-  document.getElementById('ch-badge2').textContent = `Chapter ${state.step+1} of ${CHAPTERS.length}`;
+  document.getElementById('ch-badge2').textContent = `Chapter ${state.step + 1} of ${CHAPTERS.length}`;
   document.getElementById('s-title2').textContent  = ch.title;
 
-  /* ── Show pre-authored feedback instantly — no API call needed ── */
   showFeedback(choice.feedback, choice.type, ch);
 }
 
-function showFeedback(txt, type, ch){
-  const panels = ['fb','insight','curveball','reflection'];
-  panels.forEach(id => { document.getElementById(id).style.display = 'none'; });
+function showFeedback(txt, type, ch) {
+  ['fb', 'insight', 'curveball', 'reflection'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
 
   const fb = document.getElementById('fb');
   fb.className = `fb ${type}`;
-  fb.textContent = txt;
+  fb.textContent  = txt;
   fb.style.display = 'block';
 
   const ins = document.getElementById('insight');
-  ins.innerHTML = `<strong>DT Insight</strong>${esc(ch.insight)}`;
+  ins.innerHTML    = `<strong>DT Insight</strong>${esc(ch.insight)}`;
   ins.style.display = 'block';
 
   const cv = document.getElementById('curveball');
-  cv.innerHTML = `<strong>Curveball — Discuss as a team (2 min)</strong>${esc(ch.curveball)}`;
+  cv.innerHTML    = `<strong>Curveball — Discuss as a team (2 min)</strong>${esc(ch.curveball)}`;
   cv.style.display = 'block';
 
   const ref = document.getElementById('reflection');
-  ref.innerHTML = `<strong>Team Reflection</strong>${esc(ch.reflection)}`;
+  ref.innerHTML    = `<strong>Team Reflection</strong>${esc(ch.reflection)}`;
   ref.style.display = 'block';
 
   const nb = document.getElementById('next-btn');
   nb.style.display = 'block';
-  nb.textContent = state.step < CHAPTERS.length - 1 ? 'Next Chapter' : 'See Final Results';
+  nb.textContent   = state.step < CHAPTERS.length - 1 ? 'Next Chapter' : 'See Final Results';
 }
 
-function nextChapter(){
+function nextChapter() {
   state.step++;
-  if(state.step >= CHAPTERS.length) endGame();
+  if (state.step >= CHAPTERS.length) endGame();
   else renderChapter();
 }
 
-function updateMeter(){
+function updateMeter() {
   const max = CHAPTERS.length * 20;
   const pct = Math.min(100, (state.score / max) * 100);
-  document.getElementById('meter').style.width = pct + '%';
+  document.getElementById('meter').style.width       = pct + '%';
   document.getElementById('score-display').textContent = `${state.score} / ${max}`;
 }
 
-/* ─── End Game ──────────────────────────────────────────────────────────── */
-async function endGame(){
+/* ── End Game ───────────────────────────────────────────────────────────── */
+function endGame() {
   const max = CHAPTERS.length * 20;
   const pct = Math.round((state.score / max) * 100);
 
   let badge, styleStr, msg;
-  if(pct >= 80){
+  if (pct >= 80) {
     badge    = 'Digital Champions';
     styleStr = 'background:var(--correct-bg);color:var(--correct-tx);border:1px solid var(--correct-bd)';
     msg      = 'Exceptional teamwork. Your team demonstrated strategic thinking across every dimension of digital transformation — from data ethics to change management.';
-  } else if(pct >= 55){
+  } else if (pct >= 55) {
     badge    = 'Digital Explorers';
     styleStr = 'background:rgba(59,127,245,0.1);color:#7fb3f8;border:1px solid rgba(59,127,245,0.3)';
     msg      = 'Strong performance. Your team grasped the core principles and made mostly sound, commercially grounded decisions throughout.';
@@ -737,74 +856,75 @@ async function endGame(){
   eb.textContent = badge;
   eb.style.cssText = styleStr;
   document.getElementById('end-msg').textContent = msg;
-
-  document.getElementById('saving-score').style.display = 'block';
-  document.getElementById('view-lb-btn').style.display  = 'none';
   showScreen('sc-end');
 
-  /* Save to Firebase */
-  if(window.db){
-    try{
-      const collRef = window.db.collection("leaderboard");
-      const ts      = firebase.firestore.FieldValue.serverTimestamp();
-      const snap    = await collRef.where("name", "==", state.team).get();
-      if(!snap.empty){
-        await snap.docs[0].ref.update({ score: state.score, badge: badge, timestamp: ts });
-        console.log("Score updated for:", state.team);
-      } else {
-        await collRef.add({ name: state.team, score: state.score, badge: badge, timestamp: ts });
-        console.log("New entry saved for:", state.team);
-      }
-    } catch(e){
-      console.error("Firestore save error:", e);
-      document.getElementById('saving-score').innerHTML =
-        '<span style="color:var(--wrong-tx)">Score save failed — check Firestore Rules in Firebase Console.</span>';
-    }
-  } else {
-    console.warn("window.db is null — Firebase did not initialise.");
-  }
-
-  document.getElementById('saving-score').style.display = 'none';
-  document.getElementById('view-lb-btn').style.display  = 'block';
+  finalSave(badge);
 }
 
-/* ─── Leaderboard ───────────────────────────────────────────────────────── */
-function renderLB(){
+/* ── Leaderboard ────────────────────────────────────────────────────────── */
+function renderLB() {
   const el = document.getElementById('lb-list');
-  el.innerHTML = '<div class="loading" style="display:block"><span class="spinner"></span>Loading live scores...</div>';
+  el.innerHTML = '<div style="text-align:center;padding:28px 0;color:var(--text-2)"><span class="spinner"></span>Loading scores...</div>';
 
-  if(!window.db){
-    el.innerHTML = '<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">Database not configured.</p>';
+  if (!window.db) {
+    el.innerHTML = '<p style="text-align:center;color:var(--wrong-tx);font-size:0.85rem;padding:28px 0">Firebase not ready. Check console for init error.</p>';
     return;
   }
-  if(lbUnsubscribe) lbUnsubscribe();
 
-  try{
+  // Clean up any existing real-time listener
+  if (lbUnsubscribe) { lbUnsubscribe(); lbUnsubscribe = null; }
+
+  try {
     const q = window.db.collection("leaderboard").orderBy("score", "desc").limit(50);
+
     lbUnsubscribe = q.onSnapshot(snap => {
-      if(snap.empty){
-        el.innerHTML='<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">No teams yet — be the first to finish!</p>';
+      if (snap.empty) {
+        el.innerHTML = '<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">No teams yet — be the first to start!</p>';
         return;
       }
-      let html='', rank=1;
+      let html = '', rank = 1;
       snap.forEach(doc => {
-        const t=doc.data(), rc=rank===1?'gold':rank===2?'silver':rank===3?'bronze':'';
-        html+=`<div class="lb-row"><span class="lb-rank ${rc}">${rank}</span><span class="lb-name">${esc(t.name)}</span><span class="lb-badge">${esc(t.badge||'')}</span><span class="lb-pts">${t.score}/160</span></div>`;
+        const t   = doc.data();
+        const rc  = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+        const dot = !t.completed ? '<span class="progress-dot"></span>' : '';
+        const badgeLabel = !t.completed
+          ? `Ch.${t.step || 0}/8`
+          : esc(t.badge || '');
+        html += `<div class="lb-row">
+          <span class="lb-rank ${rc}">${rank}</span>
+          <span class="lb-name">${dot}${esc(t.name || '')}</span>
+          <span class="lb-badge">${badgeLabel}</span>
+          <span class="lb-pts">${t.score || 0}/160</span>
+        </div>`;
         rank++;
       });
       el.innerHTML = html;
     }, err => {
-      console.error("Leaderboard listener error:", err);
-      el.innerHTML='<p style="text-align:center;color:var(--wrong-tx);font-size:0.85rem;padding:28px 0">Firestore blocked — update Security Rules.</p>';
+      console.error("❌ Leaderboard onSnapshot error:", err.code, err.message);
+      const hint = err.code === 'permission-denied'
+        ? 'Firestore Rules are blocking reads. Update Rules in Firebase Console.'
+        : err.message;
+      el.innerHTML = `<p style="text-align:center;color:var(--wrong-tx);font-size:0.82rem;padding:28px 0">${esc(hint)}</p>`;
     });
-  } catch(e){
-    el.innerHTML='<p style="text-align:center;color:var(--text-3);font-size:0.85rem;padding:28px 0">Firestore configuration error.</p>';
+
+  } catch (e) {
+    console.error("❌ renderLB setup error:", e);
+    el.innerHTML = '<p style="text-align:center;color:var(--wrong-tx);font-size:0.85rem;padding:28px 0">Firestore query failed. Check console.</p>';
   }
 }
 
-/* ─── Utilities ─────────────────────────────────────────────────────────── */
-function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function resetGame(){ document.getElementById('team-input').value=''; showScreen('sc-setup'); }
+/* ── Utilities ──────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function resetGame() {
+  clearInterval(state.timerInt);
+  if (lbUnsubscribe) { lbUnsubscribe(); lbUnsubscribe = null; }
+  state = { team: '', score: 0, step: 0, timerInt: null, timerSecs: DISCUSS_SECS, choicesUnlocked: false, docId: null };
+  document.getElementById('team-input').value = '';
+  showScreen('sc-setup');
+}
 </script>
 </body>
 </html>
